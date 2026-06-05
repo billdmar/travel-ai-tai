@@ -1,0 +1,21 @@
+# Local orchestration: the API (which also serves the built React UI) plus an
+# optional Redis cache. Bring up Redis with: `docker-compose --profile cache up`.
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Override the host-local default so the container reaches the redis service.
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["cache"]
+    ports:
+      - "6379:6379"
