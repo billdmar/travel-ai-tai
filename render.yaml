@@ -1,0 +1,24 @@
+# Render Blueprint — one-click deploy of Travel AI (TAI).
+# https://render.com/docs/blueprint-spec
+#
+# Deploys the unified Docker image (FastAPI serving the built React SPA) as a
+# free web service. Runs in mock-LLM mode by default, so it needs no API key
+# and no external database (SQLite is created in-container).
+#
+# To deploy: push this file, then on Render choose "New +" → "Blueprint",
+# pick this repo, and approve. Render builds the Dockerfile and binds $PORT.
+services:
+  - type: web
+    name: travel-ai-tai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Mock provider → no OpenAI key required for the live demo.
+      - key: LLM_PROVIDER
+        value: mock
+      # In-memory cache (no Redis needed on the free tier).
+      - key: CACHE_BACKEND
+        value: memory
