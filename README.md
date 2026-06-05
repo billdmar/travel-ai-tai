@@ -13,9 +13,9 @@ multi-step frontend.
 ![OpenAI](https://img.shields.io/badge/OpenAI-gpt--4o--mini-412991?logo=openai&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Open_App-brightgreen?style=flat-square)](LIVE_DEMO_URL)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Open_App-brightgreen?style=flat-square)](https://travel-ai-tai.onrender.com)
 
-**🔗 Live demo:** [LIVE_DEMO_URL](LIVE_DEMO_URL) — runs in mock-LLM mode (no API key), so itineraries are generated from a deterministic stub. _Free tier sleeps when idle; first request may take ~30s to wake._
+**🔗 Live demo:** [https://travel-ai-tai.onrender.com](https://travel-ai-tai.onrender.com) — runs in mock-LLM mode (no API key), so itineraries are generated from a deterministic stub. _Free tier sleeps when idle; first request may take ~30s to wake._
 
 ---
 
