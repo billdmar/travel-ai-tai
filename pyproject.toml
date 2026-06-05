@@ -1,0 +1,20 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "error",
+    # slowapi/limits emits a DeprecationWarning on Python 3.12+ via pkg_resources;
+    # we run 3.11 but keep this tolerant so the suite stays warning-clean.
+    "ignore::DeprecationWarning:pkg_resources",
+    "ignore::DeprecationWarning:limits",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+# B008 (Depends() in defaults) is the idiomatic FastAPI pattern; not enabled.

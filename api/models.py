@@ -1,0 +1,162 @@
+"""Pydantic v2 data models for Travel AI.
+
+The schema is deliberately split into two layers (see PLAN adversarial-review #1):
+
+* **LLM-facing** (`GeneratedItinerary`) — what the language model produces: the
+  creative trip content only. It never invents server-owned identity fields.
+* **Server-facing** (`ItineraryResponse`) — the full API response, assembled by
+  the engine by attaching the server-owned ``id``, ``created_at``, the echoed
+  request ``preferences``, ``provider``, and ``tokens_used`` onto the generated
+  content.
+
+Keeping these separate means the cache-hit "same id" guarantee comes from the
+engine returning the stored record, not from the model emitting a stable id.
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Literal
+from uuid import UUID
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+# ── Bounds (also enforced at the API layer) ────────────────────────────────
+MAX_DESTINATION_LEN = 200
+MAX_TRIP_DAYS = 30
+MAX_INTERESTS = 15
+
+ActivityCategory = Literal[
+    "food", "attraction", "transport", "accommodation", "leisure", "other"
+]
+
+
+class TravelPreferences(BaseModel):
+    """Structured user input that drives itinerary generation."""
+
+    destination: str = Field(..., max_length=MAX_DESTINATION_LEN, min_length=1)
+    start_date: date
+    end_date: date
+    budget_usd: float = Field(..., gt=0)
+    interests: list[str] = Field(default_factory=list, max_length=MAX_INTERESTS)
+    pace: Literal["relaxed", "moderate", "packed"] = "moderate"
+    travel_style: Literal["budget", "midrange", "luxury"] = "midrange"
+    dietary_needs: list[str] = Field(default_factory=list)
+    accessibility_needs: list[str] = Field(default_factory=list)
+    group_size: int = Field(1, ge=1, le=20)
+    notes: str | None = Field(None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _check_dates(self) -> TravelPreferences:
+        if self.end_date < self.start_date:
+            raise ValueError("end_date must be on or after start_date")
+        trip_days = (self.end_date - self.start_date).days + 1
+        if trip_days > MAX_TRIP_DAYS:
+            raise ValueError(f"trip length must be 1-{MAX_TRIP_DAYS} days, got {trip_days}")
+        return self
+
+    @property
+    def trip_length_days(self) -> int:
+        return (self.end_date - self.start_date).days + 1
+
+
+class Activity(BaseModel):
+    """A single scheduled activity within a day."""
+
+    time: str  # "09:00"
+    place: str
+    description: str
+    estimated_cost_usd: float = Field(..., ge=0)
+    category: ActivityCategory
+    map_url: str
+
+
+class ItineraryDay(BaseModel):
+    """One day of the itinerary."""
+
+    day_number: int = Field(..., ge=1)
+    date: date
+    theme: str
+    activities: list[Activity]
+
+
+class GeneratedItinerary(BaseModel):
+    """The LLM-facing schema — creative trip content only.
+
+    The model is asked to produce *exactly* this shape (the JSON schema is
+    embedded in the system prompt). It must NOT include ``id``, ``created_at``,
+    ``preferences``, ``provider``, or ``tokens_used`` — those are server-owned.
+    """
+
+    days: list[ItineraryDay]
+    total_estimated_cost_usd: float = Field(..., ge=0)
+    currency: str = "USD"
+    summary: str
+    tips: list[str]
+
+    @field_validator("days")
+    @classmethod
+    def _non_empty(cls, v: list[ItineraryDay]) -> list[ItineraryDay]:
+        if not v:
+            raise ValueError("itinerary must contain at least one day")
+        return v
+
+
+class ItineraryResponse(BaseModel):
+    """The full API response — generated content plus server-owned fields."""
+
+    id: UUID
+    created_at: datetime
+    preferences: TravelPreferences
+    days: list[ItineraryDay]
+    total_estimated_cost_usd: float
+    currency: str = "USD"
+    summary: str
+    tips: list[str]
+    provider: Literal["openai", "mock", "langchain"]
+    tokens_used: int | None = None
+
+    @classmethod
+    def from_generated(
+        cls,
+        *,
+        id: UUID,
+        created_at: datetime,
+        preferences: TravelPreferences,
+        generated: GeneratedItinerary,
+        provider: Literal["openai", "mock", "langchain"],
+        tokens_used: int | None,
+    ) -> ItineraryResponse:
+        """Assemble the full response from LLM content + server-owned fields."""
+        return cls(
+            id=id,
+            created_at=created_at,
+            preferences=preferences,
+            days=generated.days,
+            total_estimated_cost_usd=generated.total_estimated_cost_usd,
+            currency=generated.currency,
+            summary=generated.summary,
+            tips=generated.tips,
+            provider=provider,
+            tokens_used=tokens_used,
+        )
+
+
+class ItineraryListItem(BaseModel):
+    """Compact representation for the paginated list endpoint."""
+
+    id: UUID
+    created_at: datetime
+    destination: str
+    start_date: date
+    end_date: date
+    total_estimated_cost_usd: float
+
+
+class ItineraryListResponse(BaseModel):
+    """Paginated list envelope."""
+
+    page: int
+    per_page: int
+    total: int
+    items: list[ItineraryListItem]
