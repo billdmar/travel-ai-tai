@@ -19,11 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # App code + the compiled frontend.
 COPY api/ ./api/
-COPY alembic/ ./alembic/
 COPY --from=web-build /web/dist ./web/dist
 
+# Bind the port the platform provides ($PORT on Render/Heroku/Cloud Run);
+# fall back to 8000 for local `docker run`. Shell form so $PORT is expanded.
 EXPOSE 8000
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 # ── GPU / scale note ─────────────────────────────────────────────────────────
 # This image is CPU-only and stateless; scale horizontally behind a load

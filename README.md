@@ -7,11 +7,15 @@ engine, OpenAI structured-output generation validated by **Pydantic**, response 
 rate limiting, and persistence — paired with a **React + Vite + TypeScript + Tailwind**
 multi-step frontend.
 
+[![CI](https://github.com/billdmar/travel-ai-tai/actions/workflows/ci.yml/badge.svg)](https://github.com/billdmar/travel-ai-tai/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-gpt--4o--mini-412991?logo=openai&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Open_App-brightgreen?style=flat-square)](LIVE_DEMO_URL)
+
+**🔗 Live demo:** [LIVE_DEMO_URL](LIVE_DEMO_URL) — runs in mock-LLM mode (no API key), so itineraries are generated from a deterministic stub. _Free tier sleeps when idle; first request may take ~30s to wake._
 
 ---
 
@@ -72,8 +76,21 @@ To use real OpenAI generation, set `OPENAI_API_KEY` and `LLM_PROVIDER=openai` in
 docker-compose up --build      # serves API + built React UI from http://localhost:8000
 ```
 
-> Note: Docker was not available in the authoring environment, so the Dockerfile and
-> compose file are provided and reviewed but were not executed here.
+The multi-stage `Dockerfile` builds the React frontend, then serves it and the API
+from a single Python container. It binds `$PORT` when the platform provides one
+(Render/Cloud Run/Heroku) and falls back to `8000` locally.
+
+## Deploy (Render — free)
+
+A [`render.yaml`](render.yaml) blueprint is included for one-click deployment:
+
+1. On [Render](https://render.com), choose **New + → Blueprint** and select this repo.
+2. Approve the plan. Render builds the Dockerfile and serves the app at `$PORT`.
+3. The blueprint sets `LLM_PROVIDER=mock` and `CACHE_BACKEND=memory`, so the demo
+   runs with no API key and no external database.
+
+To enable real OpenAI generation, add an `OPENAI_API_KEY` env var and set
+`LLM_PROVIDER=openai` in the Render dashboard.
 
 ## API reference
 
