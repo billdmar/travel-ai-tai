@@ -148,6 +148,13 @@ The backend is built to serve many concurrent users; these are the concrete mech
 > The OpenAI path is implemented and unit-tested via mocked errors, but in this
 > environment all runtime verification uses the mock provider (no API key).
 
+## Testing
+
+A **36-test** suite runs entirely against the mock LLM provider — no API key and no
+network — so it's fast and deterministic in CI. Coverage spans the cache-hit identity
+guarantee, rate-limit isolation (429), error mapping (503/502), request validation, and a
+concurrency smoke test that fires many simultaneous requests and asserts they all succeed.
+
 ## Development
 
 ```bash
