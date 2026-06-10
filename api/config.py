@@ -30,10 +30,12 @@ class Settings(BaseSettings):
 
     # ── LLM provider ────────────────────────────────────────────────────────
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
-    llm_provider: Literal["openai", "mock", "langchain"] = Field(
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
+    llm_provider: Literal["openai", "mock", "langchain", "gemini"] = Field(
         default="mock", alias="LLM_PROVIDER"
     )
     openai_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MODEL")
+    gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
     max_tokens: int = Field(default=2000, alias="MAX_TOKENS", gt=0)
 
     # ── Persistence ─────────────────────────────────────────────────────────

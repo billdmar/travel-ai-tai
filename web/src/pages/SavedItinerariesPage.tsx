@@ -1,22 +1,42 @@
 import { useCallback, useEffect, useState } from 'react'
 import { deleteItinerary, getItinerary, listItineraries } from '../api/client'
 import type { ItineraryListItem, ItineraryResponse } from '../types/itinerary'
+import { money } from '../lib/format'
 import ItineraryView from '../components/ItineraryView'
 import ErrorBanner from '../components/ErrorBanner'
 
 const PER_PAGE = 20
 
-function money(n: number): string {
-  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+interface SavedItinerariesPageProps {
+  onNavigateHome?: () => void
 }
 
-export default function SavedItinerariesPage() {
+function SkeletonList() {
+  return (
+    <ul className="space-y-3" aria-busy="true" aria-label="Loading saved itineraries">
+      {[0, 1, 2].map((i) => (
+        <li
+          key={i}
+          className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        >
+          <div className="w-full animate-pulse space-y-2 motion-reduce:animate-none">
+            <div className="h-4 w-1/3 rounded bg-slate-200" />
+            <div className="h-3 w-1/2 rounded bg-slate-100" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerariesPageProps) {
   const [items, setItems] = useState<ItineraryListItem[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<unknown>(null)
   const [selected, setSelected] = useState<ItineraryResponse | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
 
   const load = useCallback(async (p: number) => {
     setLoading(true)
@@ -34,6 +54,8 @@ export default function SavedItinerariesPage() {
   }, [])
 
   useEffect(() => {
+    // Mount-time data fetch; the synchronous setState in `load` is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load(1)
   }, [load])
 
@@ -49,6 +71,7 @@ export default function SavedItinerariesPage() {
 
   async function remove(id: string) {
     setError(null)
+    setConfirmId(null)
     try {
       await deleteItinerary(id)
       await load(page)
@@ -65,7 +88,7 @@ export default function SavedItinerariesPage() {
         <button
           type="button"
           onClick={() => setSelected(null)}
-          className="text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline"
+          className="rounded text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
         >
           ← Back to saved itineraries
         </button>
@@ -78,7 +101,7 @@ export default function SavedItinerariesPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Saved itineraries</h1>
-        <p className="mt-1 text-slate-600">Browse trips you have generated.</p>
+        <p className="mt-1 text-slate-600">Browse trips you have saved.</p>
       </div>
 
       {error != null && (
@@ -86,10 +109,36 @@ export default function SavedItinerariesPage() {
       )}
 
       {loading ? (
-        <p className="text-slate-500">Loading…</p>
+        <SkeletonList />
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="text-slate-500">No saved itineraries yet. Generate one from the home page.</p>
+          <svg
+            aria-hidden="true"
+            className="mx-auto h-10 w-10 text-slate-300"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"
+            />
+          </svg>
+          <h2 className="mt-3 font-semibold text-slate-700">No saved itineraries yet</h2>
+          <p className="text-sm text-slate-500">
+            Generate a trip and hit Save to keep it here for later.
+          </p>
+          {onNavigateHome && (
+            <button
+              type="button"
+              onClick={onNavigateHome}
+              className="mt-4 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            >
+              Plan a trip
+            </button>
+          )}
         </div>
       ) : (
         <ul className="space-y-3">
@@ -101,24 +150,46 @@ export default function SavedItinerariesPage() {
               <div>
                 <p className="font-semibold text-slate-800">{it.destination}</p>
                 <p className="text-sm text-slate-500">
-                  {it.start_date} → {it.end_date} · {money(it.total_estimated_cost_usd)}
+                  {it.start_date} → {it.end_date} ·{' '}
+                  <span className="tabular-nums">{money(it.total_estimated_cost_usd)}</span>
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => view(it.id)}
-                  className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-brand-700"
+                  className="rounded-lg bg-brand-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                 >
                   View
                 </button>
-                <button
-                  type="button"
-                  onClick={() => remove(it.id)}
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-                >
-                  Delete
-                </button>
+                {confirmId === it.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => remove(it.id)}
+                      aria-label={`Confirm delete itinerary for ${it.destination}`}
+                      className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                    >
+                      Confirm?
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(null)}
+                      className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmId(it.id)}
+                    aria-label={`Delete itinerary for ${it.destination}`}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
             </li>
           ))}
@@ -131,7 +202,7 @@ export default function SavedItinerariesPage() {
             type="button"
             disabled={page <= 1}
             onClick={() => load(page - 1)}
-            className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-700 disabled:opacity-40"
+            className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-700 transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             Previous
           </button>
@@ -142,7 +213,7 @@ export default function SavedItinerariesPage() {
             type="button"
             disabled={page >= totalPages}
             onClick={() => load(page + 1)}
-            className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-700 disabled:opacity-40"
+            className="rounded-lg border border-slate-300 px-4 py-1.5 text-sm font-medium text-slate-700 transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             Next
           </button>

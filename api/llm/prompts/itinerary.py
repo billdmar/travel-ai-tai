@@ -9,7 +9,27 @@ user prompt renders the structured preferences into a natural-language brief.
 
 from __future__ import annotations
 
+from urllib.parse import quote_plus
+
 from api.models import TravelPreferences
+
+
+def maps_url(place: str, destination: str) -> str:
+    """Return a Google Maps search URL for ``place`` within ``destination``.
+
+    The server owns this link (the LLM's own ``map_url`` values frequently
+    hallucinate and 404), so we deterministically build a Maps *search* query —
+    which always resolves — from the activity place and the trip destination.
+    The destination is only appended when ``place`` does not already contain it,
+    to avoid awkward doubling like "Tokyo Tower, Tokyo, Japan, Tokyo, Japan".
+    """
+    place = place.strip()
+    destination = destination.strip()
+    if destination and destination.lower() not in place.lower():
+        query = f"{place}, {destination}"
+    else:
+        query = place
+    return f"https://www.google.com/maps/search/?api=1&query={quote_plus(query)}"
 
 # The exact shape the model must emit. Mirrors ``GeneratedItinerary`` — the
 # creative content only, with NO server-owned fields (id / created_at /
@@ -54,8 +74,10 @@ def build_system_prompt() -> str:
         "consecutive `day_number` starting at 1 and the correct calendar date.\n"
         "- Each day must contain at least three activities with realistic "
         "times and costs in USD.\n"
-        "- `total_estimated_cost_usd` must equal the sum of all activity costs.\n"
-        "- Use OpenStreetMap or Google Maps deep links for `map_url`.\n"
+        "- `total_estimated_cost_usd` must equal the sum of all activity costs "
+        "(the server recomputes this from the activities, so make them add up).\n"
+        "- Provide a plausible `map_url` for each activity (the server overwrites "
+        "it with a canonical Google Maps search link, so it need not be exact).\n"
         "- Respect the traveler's budget, pace, interests, dietary and "
         "accessibility needs.\n"
         "- Return ONLY the JSON object."

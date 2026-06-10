@@ -23,7 +23,7 @@ from uuid import UUID, uuid4
 from pydantic import ValidationError
 
 from api.db import ItineraryRecord
-from api.llm.prompts.itinerary import build_system_prompt, build_user_prompt
+from api.llm.prompts.itinerary import build_system_prompt, build_user_prompt, maps_url
 from api.models import GeneratedItinerary, ItineraryResponse, TravelPreferences
 
 if TYPE_CHECKING:
@@ -52,6 +52,47 @@ def cache_key_for(prefs: TravelPreferences) -> str:
         prefs.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
     )
     return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def normalize_generated(
+    generated: GeneratedItinerary, prefs: TravelPreferences
+) -> GeneratedItinerary:
+    """Return a corrected copy of ``generated`` with server-owned values fixed.
+
+    The LLM is unreliable about two things the UI depends on, so the server
+    enforces them deterministically instead of trusting the model:
+
+    * **Grand total** — ``total_estimated_cost_usd`` is recomputed as the exact
+      sum of every activity's ``estimated_cost_usd`` across all days (rounded to
+      2 dp). Per-activity costs are the model's own estimates and are left
+      untouched; only the grand total is derived from them so the displayed
+      numbers always reconcile.
+    * **Map links** — every activity's ``map_url`` is overwritten with a
+      canonical :func:`~api.llm.prompts.itinerary.maps_url` search link so the
+      links always resolve (LLM-supplied URLs hallucinate and 404).
+
+    Returns a new immutable instance via ``model_copy`` rather than mutating in
+    place.
+    """
+    total = 0.0
+    new_days = []
+    for day in generated.days:
+        new_activities = []
+        for activity in day.activities:
+            total += activity.estimated_cost_usd
+            new_activities.append(
+                activity.model_copy(
+                    update={"map_url": maps_url(activity.place, prefs.destination)}
+                )
+            )
+        new_days.append(day.model_copy(update={"activities": new_activities}))
+
+    return generated.model_copy(
+        update={
+            "days": new_days,
+            "total_estimated_cost_usd": round(total, 2),
+        }
+    )
 
 
 class RecommendationEngine:
@@ -93,6 +134,9 @@ class RecommendationEngine:
             )
             raise ItineraryParseError("LLM output failed schema validation") from exc
 
+        # Server-enforce the grand total and canonical map links before assembly.
+        generated = normalize_generated(generated, prefs)
+
         itinerary_id = uuid4()
         created_at = datetime.now(timezone.utc)
         tokens_used = 0 if self._provider.name == "mock" else None
@@ -104,6 +148,7 @@ class RecommendationEngine:
             generated=generated,
             provider=self._provider.name,  # type: ignore[arg-type]
             tokens_used=tokens_used,
+            saved=False,  # fresh generation is a draft until explicitly saved
         )
 
         await self._persist(response, session)
@@ -156,6 +201,9 @@ def record_to_response(record: ItineraryRecord) -> ItineraryResponse:
     """Rehydrate a full ``ItineraryResponse`` from a stored ORM row."""
     preferences = TravelPreferences.model_validate_json(record.preferences_json)
     generated = GeneratedItinerary.model_validate_json(record.itinerary_json)
+    # Re-apply normalization on read so historical rows (persisted before the
+    # server owned totals/map links) also reconcile and yield working links.
+    generated = normalize_generated(generated, preferences)
     return ItineraryResponse.from_generated(
         id=UUID(record.id),
         created_at=record.created_at,
@@ -163,4 +211,5 @@ def record_to_response(record: ItineraryRecord) -> ItineraryResponse:
         generated=generated,
         provider=record.provider,  # type: ignore[arg-type]
         tokens_used=record.tokens_used,
+        saved=record.saved_at is not None,
     )

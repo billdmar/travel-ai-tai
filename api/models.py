@@ -113,8 +113,10 @@ class ItineraryResponse(BaseModel):
     currency: str = "USD"
     summary: str
     tips: list[str]
-    provider: Literal["openai", "mock", "langchain"]
+    provider: Literal["openai", "mock", "langchain", "gemini"]
     tokens_used: int | None = None
+    #: Whether the user has explicitly saved this itinerary (vs. a draft).
+    saved: bool = False
 
     @classmethod
     def from_generated(
@@ -124,8 +126,9 @@ class ItineraryResponse(BaseModel):
         created_at: datetime,
         preferences: TravelPreferences,
         generated: GeneratedItinerary,
-        provider: Literal["openai", "mock", "langchain"],
+        provider: Literal["openai", "mock", "langchain", "gemini"],
         tokens_used: int | None,
+        saved: bool = False,
     ) -> ItineraryResponse:
         """Assemble the full response from LLM content + server-owned fields."""
         return cls(
@@ -139,6 +142,7 @@ class ItineraryResponse(BaseModel):
             tips=generated.tips,
             provider=provider,
             tokens_used=tokens_used,
+            saved=saved,
         )
 
 
