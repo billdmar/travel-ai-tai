@@ -5,8 +5,13 @@ import PreferenceForm from '../components/PreferenceForm'
 import ItineraryView from '../components/ItineraryView'
 import LoadingSkeleton from '../components/LoadingSkeleton'
 import ErrorBanner from '../components/ErrorBanner'
+import heroImage from '../assets/hero.png'
 
-export default function HomePage() {
+interface HomePageProps {
+  onNavigateSaved?: () => void
+}
+
+export default function HomePage({ onNavigateSaved }: HomePageProps) {
   const [loading, setLoading] = useState(false)
   const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null)
   const [error, setError] = useState<unknown>(null)
@@ -37,10 +42,15 @@ export default function HomePage() {
     <div className="space-y-6">
       {!itinerary && !loading && (
         <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+          <img
+            src={heroImage}
+            alt=""
+            className="mx-auto mb-6 aspect-[16/9] max-w-md rounded-2xl object-cover shadow-lg"
+          />
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
             Plan your perfect trip with AI
           </h1>
-          <p className="mt-2 text-slate-600">
+          <p className="mt-3 text-base text-slate-600 sm:text-lg">
             Tell us your preferences and get a personalized, day-by-day itinerary in seconds.
           </p>
         </div>
@@ -57,7 +67,11 @@ export default function HomePage() {
       {loading ? (
         <LoadingSkeleton />
       ) : itinerary ? (
-        <ItineraryView itinerary={itinerary} onReset={reset} />
+        <ItineraryView
+          itinerary={itinerary}
+          onReset={reset}
+          onViewSaved={onNavigateSaved}
+        />
       ) : (
         <PreferenceForm onSubmit={generate} submitting={loading} />
       )}

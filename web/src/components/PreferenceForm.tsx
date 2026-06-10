@@ -186,7 +186,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               onChange={(e) => setBudget(Number(e.target.value))}
               className="w-full accent-brand-600"
             />
-            <div className="flex justify-between text-xs text-slate-400">
+            <div className="flex justify-between text-xs text-slate-500">
               <span>$100</span>
               <span>$10,000</span>
             </div>
@@ -207,7 +207,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               onChange={(e) => setGroupSize(Number(e.target.value))}
               className="w-full accent-brand-600"
             />
-            <div className="flex justify-between text-xs text-slate-400">
+            <div className="flex justify-between text-xs text-slate-500">
               <span>1</span>
               <span>20</span>
             </div>
@@ -218,7 +218,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               {TRAVEL_STYLES.map((opt) => (
                 <label
                   key={opt.value}
-                  className={`cursor-pointer rounded-lg border p-3 text-sm transition ${
+                  className={`relative cursor-pointer rounded-lg border p-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${
                     travelStyle === opt.value
                       ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100'
                       : 'border-slate-300 hover:border-slate-400'
@@ -232,6 +232,14 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                     onChange={() => setTravelStyle(opt.value)}
                     className="sr-only"
                   />
+                  {travelStyle === opt.value && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute right-2 top-2 text-brand-600"
+                    >
+                      ✓
+                    </span>
+                  )}
                   <span className="block font-semibold text-slate-800">{opt.label}</span>
                   <span className="mt-1 block text-xs text-slate-500">{opt.hint}</span>
                 </label>
@@ -250,7 +258,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               {PACES.map((opt) => (
                 <label
                   key={opt.value}
-                  className={`cursor-pointer rounded-lg border p-3 text-sm transition ${
+                  className={`relative cursor-pointer rounded-lg border p-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${
                     pace === opt.value
                       ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100'
                       : 'border-slate-300 hover:border-slate-400'
@@ -264,6 +272,11 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                     onChange={() => setPace(opt.value)}
                     className="sr-only"
                   />
+                  {pace === opt.value && (
+                    <span aria-hidden="true" className="absolute right-2 top-2 text-brand-600">
+                      ✓
+                    </span>
+                  )}
                   <span className="block font-semibold text-slate-800">{opt.label}</span>
                   <span className="mt-1 block text-xs text-slate-500">{opt.hint}</span>
                 </label>
@@ -377,7 +390,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
           type="button"
           onClick={back}
           disabled={step === 1 || submitting}
-          className="rounded-lg border border-slate-300 px-5 py-2 font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg border border-slate-300 px-5 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Back
         </button>
@@ -386,7 +399,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
           <button
             type="button"
             onClick={next}
-            className="rounded-lg bg-brand-600 px-6 py-2 font-medium text-white transition hover:bg-brand-700"
+            className="rounded-lg bg-brand-600 px-6 py-2 font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             Next
           </button>
@@ -395,7 +408,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
             type="button"
             onClick={handleGenerate}
             disabled={submitting}
-            className="rounded-lg bg-brand-600 px-6 py-2 font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-brand-600 px-6 py-2 font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? 'Generating…' : 'Generate itinerary'}
           </button>

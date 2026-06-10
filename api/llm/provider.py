@@ -61,14 +61,22 @@ TOKEN_COUNTER = _TokenCounter()
 def get_provider(settings: Settings) -> LLMProvider:
     """Select an :class:`LLMProvider` based on ``settings``.
 
-    Returns the mock provider when ``LLM_PROVIDER=mock`` or when no
-    ``OPENAI_API_KEY`` is configured; the OpenAI provider for ``openai``; and
-    the LangChain wrapper for ``langchain``. OpenAI/LangChain modules are
-    imported lazily so the mock path never pulls in their dependencies.
+    Falls back to the mock provider when ``LLM_PROVIDER=mock`` or when the
+    selected real provider is missing *its own* API key — ``openai``/
+    ``langchain`` need ``OPENAI_API_KEY`` and ``gemini`` needs
+    ``GEMINI_API_KEY``. Otherwise returns the OpenAI provider for ``openai``,
+    the LangChain wrapper for ``langchain``, and the Gemini provider for
+    ``gemini``. Real-provider modules are imported lazily so the mock path
+    never pulls in their dependencies.
     """
     provider = settings.llm_provider
 
-    if provider == "mock" or not settings.openai_api_key:
+    fall_back_to_mock = (
+        provider == "mock"
+        or (provider in ("openai", "langchain") and not settings.openai_api_key)
+        or (provider == "gemini" and not settings.gemini_api_key)
+    )
+    if fall_back_to_mock:
         from api.llm.mock_provider import MockLLMProvider
 
         return MockLLMProvider()
@@ -82,6 +90,11 @@ def get_provider(settings: Settings) -> LLMProvider:
         from api.llm.langchain_provider import LangChainLLMProvider
 
         return LangChainLLMProvider(settings)
+
+    if provider == "gemini":
+        from api.llm.gemini_provider import GeminiLLMProvider
+
+        return GeminiLLMProvider(settings)
 
     # Unreachable given the Literal type on the setting, but explicit is safe.
     raise ValueError(f"Unknown LLM_PROVIDER: {provider!r}")

@@ -86,21 +86,50 @@ async def get_itinerary(
     return record_to_response(record)
 
 
+@router.post("/itineraries/{itinerary_id}/save", response_model=ItineraryResponse)
+async def save_itinerary(
+    itinerary_id: UUID,
+    session: AsyncSession = Depends(get_session),
+) -> ItineraryResponse:
+    """Explicitly save a draft itinerary so it appears in the Saved list.
+
+    Sets ``saved_at`` to now if not already set (idempotent — re-saving keeps
+    the original timestamp). Returns the itinerary with ``saved=True``; 404 if
+    missing or soft-deleted.
+    """
+    record = await session.get(ItineraryRecord, str(itinerary_id))
+    if record is None or record.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "itinerary_not_found"},
+        )
+    if record.saved_at is None:
+        record.saved_at = datetime.now(timezone.utc)
+        await session.commit()
+    return record_to_response(record)
+
+
 @router.get("/itineraries", response_model=ItineraryListResponse)
 async def list_itineraries(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ) -> ItineraryListResponse:
-    """List itineraries (paginated, excluding soft-deleted records)."""
+    """List SAVED itineraries (paginated, excluding soft-deleted records).
+
+    Only itineraries explicitly saved (``saved_at IS NOT NULL``) appear here;
+    freshly generated drafts are persisted but stay out of the Saved list until
+    saved via ``POST /itineraries/{id}/save``.
+    """
     live = ItineraryRecord.deleted_at.is_(None)
+    saved = ItineraryRecord.saved_at.is_not(None)
 
     total = await session.scalar(
-        select(func.count()).select_from(ItineraryRecord).where(live)
+        select(func.count()).select_from(ItineraryRecord).where(live, saved)
     )
     rows = await session.scalars(
         select(ItineraryRecord)
-        .where(live)
+        .where(live, saved)
         .order_by(ItineraryRecord.created_at.desc())
         .offset((page - 1) * per_page)
         .limit(per_page)

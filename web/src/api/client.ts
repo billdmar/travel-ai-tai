@@ -88,6 +88,12 @@ export function listItineraries(page = 1, perPage = 20): Promise<ItineraryListRe
   return request<ItineraryListResponse>(`${BASE}/itineraries?${qs.toString()}`)
 }
 
+export function saveItinerary(id: string): Promise<ItineraryResponse> {
+  return request<ItineraryResponse>(`${BASE}/itineraries/${encodeURIComponent(id)}/save`, {
+    method: 'POST',
+  })
+}
+
 export function deleteItinerary(id: string): Promise<void> {
   return request<void>(`${BASE}/itineraries/${encodeURIComponent(id)}`, {
     method: 'DELETE',
