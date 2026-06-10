@@ -1,0 +1,40 @@
+# Build-context hygiene — keep host junk out of the Docker build context.
+# Without this, `COPY web/ ./` and `COPY api/ ./api/` drag in web/node_modules
+# (~127 MB), the local virtualenv, caches, and the SQLite DB — bloating the
+# context and risking macOS-built native node modules leaking into the Linux
+# build. This is a real free-tier builder hazard (memory/time).
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local DB / secrets — never bake these into an image
+*.db
+*.sqlite3
+.env
+*.env
+!.env.example
+
+# Node / frontend — `npm ci` rebuilds these inside the image
+web/node_modules/
+node_modules/
+web/dist/
+
+# VCS / CI / docs / tests — not needed at build time
+.git/
+.github/
+docs/
+tests/
+docker-compose.yml
+
+# OS / editor cruft
+.DS_Store
+.idea/
+.vscode/
