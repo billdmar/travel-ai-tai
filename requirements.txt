@@ -12,8 +12,14 @@ cachetools>=5.3,<6
 slowapi>=0.1.9,<0.2
 alembic>=1.13,<2
 openai>=1.0,<2
-google-generativeai>=0.8,<0.9
 python-dotenv>=1.0,<2
+# NOTE: the optional Gemini SDK (google-generativeai) is intentionally NOT in
+# this prod-image requirements file. Production runs LLM_PROVIDER=mock and the
+# gemini provider imports the SDK lazily, so shipping it would only add
+# grpcio/protobuf build risk + image bloat on the free-tier slim image for code
+# the prod image never executes. It lives in requirements-dev.txt for local
+# Gemini use; add it back here (with a build toolchain) only to deploy with
+# LLM_PROVIDER=gemini.
 
 # Optional cache backend (graceful fallback to in-memory if unreachable).
 redis>=5.0,<6

@@ -16,7 +16,16 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
-      # Mock provider → no OpenAI key required for the live demo.
+      # Mock provider → no API key required; the live demo always works
+      # instantly with deterministic sample itineraries. The server still owns
+      # the always-valid Google Maps links and the reconciled pricing, so the
+      # demo exercises those features fully.
+      #
+      # To run real Gemini in prod instead: set LLM_PROVIDER=gemini and add
+      # GEMINI_API_KEY as a dashboard secret (never commit a key here), then add
+      # google-generativeai back to requirements.txt and use a base image with a
+      # build toolchain (grpcio/protobuf). Note the free-tier Gemini quota is
+      # small — pay-as-you-go billing may be needed for reliable live use.
       - key: LLM_PROVIDER
         value: mock
       # In-memory cache (no Redis needed on the free tier).
