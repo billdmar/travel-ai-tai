@@ -13,7 +13,10 @@ RUN npm run build          # emits /web/dist
 FROM python:3.11-slim AS runtime
 WORKDIR /app
 
-# Install Python deps. CPU-only — no heavy ML wheels here.
+# Install Python deps. CPU-only — no heavy ML wheels, no grpc.
+# Prod runs LLM_PROVIDER=mock; the optional Gemini SDK (grpcio/protobuf) is a
+# dev-only dep (requirements-dev.txt) and is intentionally NOT installed here,
+# so this slim image needs no compiler toolchain.
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
