@@ -13,6 +13,15 @@ export default {
           700: '#1d4ed8',
         },
       },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translate(-50%, 8px)' },
+          '100%': { opacity: '1', transform: 'translate(-50%, 0)' },
+        },
+      },
+      animation: {
+        fadeIn: 'fadeIn 200ms ease-out',
+      },
     },
   },
   plugins: [],

@@ -38,6 +38,14 @@ class ItineraryRecord(Base):
     itinerary_json: Mapped[str] = mapped_column(Text)
     provider: Mapped[str] = mapped_column(String(32))
     tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Explicit-save marker: NULL for drafts (generation always persists, but a
+    # row only appears in the Saved list once the user saves it). NOTE: existing
+    # SQLite DBs created before this column was added need a manual
+    # `ALTER TABLE itinerary_records ADD COLUMN saved_at DATETIME` — a fresh DB
+    # (created via create_all) already has it.
+    saved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

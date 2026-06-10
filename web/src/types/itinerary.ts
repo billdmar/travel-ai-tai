@@ -51,6 +51,7 @@ export interface ItineraryResponse {
   tips: string[]
   provider: string
   tokens_used: number | null
+  saved: boolean
 }
 
 export interface ItineraryListItem {

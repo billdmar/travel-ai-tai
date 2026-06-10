@@ -73,8 +73,13 @@ async def test_get_missing_404(client) -> None:
 
 
 async def test_list_envelope(client) -> None:
-    await client.post("/api/v1/itineraries", json=_payload())
-    await client.post("/api/v1/itineraries", json=_payload(destination="Kyoto"))
+    # The list returns ONLY saved itineraries, so save both before asserting.
+    a = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    b = (
+        await client.post("/api/v1/itineraries", json=_payload(destination="Kyoto"))
+    ).json()
+    await client.post(f"/api/v1/itineraries/{a['id']}/save")
+    await client.post(f"/api/v1/itineraries/{b['id']}/save")
     resp = await client.get("/api/v1/itineraries")
     assert resp.status_code == 200
     body = resp.json()
@@ -86,6 +91,9 @@ async def test_list_envelope(client) -> None:
 async def test_delete_then_get_404_soft_delete(client) -> None:
     created = (await client.post("/api/v1/itineraries", json=_payload())).json()
     iid = created["id"]
+    # Save first so the row is in the list, making the post-delete exclusion meaningful.
+    await client.post(f"/api/v1/itineraries/{iid}/save")
+    assert (await client.get("/api/v1/itineraries")).json()["total"] == 1
     delete_resp = await client.delete(f"/api/v1/itineraries/{iid}")
     assert delete_resp.status_code == 204
     get_resp = await client.get(f"/api/v1/itineraries/{iid}")
