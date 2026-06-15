@@ -22,6 +22,8 @@ from uuid import UUID, uuid4
 
 from pydantic import ValidationError
 
+from api import affiliate
+from api.config import Settings, get_settings
 from api.db import ItineraryRecord
 from api.llm.prompts.itinerary import build_system_prompt, build_user_prompt, maps_url
 from api.models import GeneratedItinerary, ItineraryResponse, TravelPreferences
@@ -30,7 +32,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from api.cache import ItineraryCache
-    from api.config import Settings
     from api.llm.provider import LLMProvider
 
 logger = logging.getLogger("tai.recommend")
@@ -55,11 +56,13 @@ def cache_key_for(prefs: TravelPreferences) -> str:
 
 
 def normalize_generated(
-    generated: GeneratedItinerary, prefs: TravelPreferences
+    generated: GeneratedItinerary,
+    prefs: TravelPreferences,
+    settings: Settings | None = None,
 ) -> GeneratedItinerary:
     """Return a corrected copy of ``generated`` with server-owned values fixed.
 
-    The LLM is unreliable about two things the UI depends on, so the server
+    The LLM is unreliable about three things the UI depends on, so the server
     enforces them deterministically instead of trusting the model:
 
     * **Grand total** — ``total_estimated_cost_usd`` is recomputed as the exact
@@ -70,10 +73,15 @@ def normalize_generated(
     * **Map links** — every activity's ``map_url`` is overwritten with a
       canonical :func:`~api.llm.prompts.itinerary.maps_url` search link so the
       links always resolve (LLM-supplied URLs hallucinate and 404).
+    * **Booking links** — every activity's ``booking_url`` is set from
+      :func:`api.affiliate.booking_url` (``None`` for categories with no
+      partner), again server-owned so the links resolve and carry our tag.
 
-    Returns a new immutable instance via ``model_copy`` rather than mutating in
-    place.
+    ``settings`` defaults to the process settings (so callers like
+    ``record_to_response`` need not thread it through); the engine passes its
+    own. Returns a new immutable instance via ``model_copy``.
     """
+    settings = settings or get_settings()
     total = 0.0
     new_days = []
     for day in generated.days:
@@ -82,7 +90,15 @@ def normalize_generated(
             total += activity.estimated_cost_usd
             new_activities.append(
                 activity.model_copy(
-                    update={"map_url": maps_url(activity.place, prefs.destination)}
+                    update={
+                        "map_url": maps_url(activity.place, prefs.destination),
+                        "booking_url": affiliate.booking_url(
+                            activity.category,
+                            activity.place,
+                            prefs.destination,
+                            settings,
+                        ),
+                    }
                 )
             )
         new_days.append(day.model_copy(update={"activities": new_activities}))
@@ -134,8 +150,9 @@ class RecommendationEngine:
             )
             raise ItineraryParseError("LLM output failed schema validation") from exc
 
-        # Server-enforce the grand total and canonical map links before assembly.
-        generated = normalize_generated(generated, prefs)
+        # Server-enforce the grand total, canonical map links, and booking links
+        # before assembly.
+        generated = normalize_generated(generated, prefs, self._settings)
 
         itinerary_id = uuid4()
         created_at = datetime.now(timezone.utc)
