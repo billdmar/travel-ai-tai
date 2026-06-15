@@ -45,17 +45,18 @@ export default function HowItWorksPage() {
           </Reveal>
 
           <ol className="mt-12 space-y-5">
-            {STEPS.map((step) => (
-              <Reveal key={step.n}>
-                <li className="flex gap-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
-                  <span className="text-2xl font-semibold tabular-nums text-brand-400">
-                    {step.n}
-                  </span>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">{step.title}</h2>
-                    <p className="mt-1.5 leading-relaxed text-slate-500">{step.body}</p>
-                  </div>
-                </li>
+            {STEPS.map((step, i) => (
+              <Reveal
+                key={step.n}
+                as="li"
+                index={i}
+                className="flex gap-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7"
+              >
+                <span className="text-2xl font-semibold tabular-nums text-brand-400">{step.n}</span>
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">{step.title}</h2>
+                  <p className="mt-1.5 leading-relaxed text-slate-500">{step.body}</p>
+                </div>
               </Reveal>
             ))}
           </ol>

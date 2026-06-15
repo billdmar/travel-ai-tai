@@ -207,7 +207,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
       {/* Day cards */}
       <div className="space-y-4">
         {days.map((day, i) => (
-          <Reveal key={day.day_number}>
+          <Reveal key={day.day_number} index={i}>
             <DayCard day={day} grandTotal={grandTotal} defaultOpen={i === 0} />
           </Reveal>
         ))}

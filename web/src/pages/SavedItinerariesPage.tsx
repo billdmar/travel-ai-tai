@@ -157,54 +157,57 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
             </div>
           ) : (
             <ul className="space-y-3">
-              {items.map((it) => (
-                <Reveal key={it.id}>
-                  <li className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md">
-                    <div>
-                      <p className="font-semibold text-slate-900">{it.destination}</p>
-                      <p className="mt-0.5 text-sm text-slate-500">
-                        {it.start_date} → {it.end_date} ·{' '}
-                        <span className="tabular-nums">{money(it.total_estimated_cost_usd)}</span>
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => view(it.id)}
-                        className="rounded-full bg-brand-600 px-5 py-1.5 text-sm font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-                      >
-                        View
-                      </button>
-                      {confirmId === it.id ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => remove(it.id)}
-                            aria-label={`Confirm delete itinerary for ${it.destination}`}
-                            className="rounded-full bg-red-600 px-3.5 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                          >
-                            Confirm?
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmId(null)}
-                            className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
+              {items.map((it, i) => (
+                <Reveal
+                  key={it.id}
+                  as="li"
+                  index={i}
+                  className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                >
+                  <div>
+                    <p className="font-semibold text-slate-900">{it.destination}</p>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                      {it.start_date} → {it.end_date} ·{' '}
+                      <span className="tabular-nums">{money(it.total_estimated_cost_usd)}</span>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => view(it.id)}
+                      className="rounded-full bg-brand-600 px-5 py-1.5 text-sm font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                    >
+                      View
+                    </button>
+                    {confirmId === it.id ? (
+                      <>
                         <button
                           type="button"
-                          onClick={() => setConfirmId(it.id)}
-                          aria-label={`Delete itinerary for ${it.destination}`}
+                          onClick={() => remove(it.id)}
+                          aria-label={`Confirm delete itinerary for ${it.destination}`}
+                          className="rounded-full bg-red-600 px-3.5 py-1.5 text-sm font-medium text-white transition hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                        >
+                          Confirm?
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmId(null)}
                           className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
                         >
-                          Delete
+                          Cancel
                         </button>
-                      )}
-                    </div>
-                  </li>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmId(it.id)}
+                        aria-label={`Delete itinerary for ${it.destination}`}
+                        className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </Reveal>
               ))}
             </ul>

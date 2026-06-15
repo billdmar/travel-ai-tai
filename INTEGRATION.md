@@ -1,56 +1,58 @@
-# Integration Note — `feat/redesign-fe-itinerary`
+# Redesign Integration — shipped to `main`
 
-**For:** Terminal 1 (owns `App.tsx` + routing; performs the merge into the main redesign).
-**From:** Terminal 2 — Frontend Itinerary + Content pages.
+**Status:** All four parallel redesign branches are merged into `main`, built, tested, and deployed (Render auto-deploys `main`).
 
-## 1. What this branch contains
+This document records the integration of the 4-terminal parallel frontend+backend redesign of Travel AI (TAI).
 
-Restyled itinerary rendering + 4 new content/route pages, plus an affiliate-link layer (FTC disclosure banner and per-activity "Book" links). **Exactly 7 files** were created or changed — nothing else.
+## 1. Branches integrated
 
-| File | Status | Purpose |
+All four were **pairwise disjoint** — zero file overlap, zero merge conflicts.
+
+| Branch | Terminal | Scope |
 |---|---|---|
-| `web/src/components/ItineraryView.tsx` | restyled | Itinerary renderer; added FTC affiliate-disclosure banner; wraps content in `Reveal`. |
-| `web/src/components/DayCard.tsx` | restyled | Per-day card; added affiliate **Book** link (gated on `Activity.booking_url`) beside existing **Map** link + pricing. |
-| `web/src/pages/ItineraryPage.tsx` | **NEW** | Route page for `/itinerary/:id` (fetch + render one itinerary). |
-| `web/src/pages/SavedItinerariesPage.tsx` | restyled | Saved list; list/pagination/delete logic preserved. |
-| `web/src/pages/HowItWorksPage.tsx` | **NEW** | Static content page for `/how-it-works`. |
-| `web/src/pages/AboutPage.tsx` | **NEW** | Static content page for `/about`. |
-| `web/src/pages/DisclosurePage.tsx` | **NEW** | Static affiliate-disclosure page for `/disclosure`. |
+| `feat/redesign-backend` | T3 | Hobby-driven destination discovery (`/destinations`, prompts, models, mock provider) |
+| `feat/redesign-images-affiliate` | T4 | Affiliate booking links (`api/affiliate.py`) + Unsplash image proxy (`/images`); `booking_url` on `Activity` |
+| `feat/redesign-fe-core` | T1 | Design system (`components/ui` barrel), router (`App.tsx`), discovery flow, destination imagery, Home/Discover/Results/TripDetails pages |
+| `feat/redesign-fe-itinerary` | T2 | Restyled itinerary rendering + content pages |
 
-## 2. Routes to register in `App.tsx`
+## 2. Frontend routes (in `App.tsx`)
 
-Terminal 1 owns routing. Register these:
+| Route | Component |
+|---|---|
+| `/` | `HomePage` |
+| `/discover` | `DiscoverPage` |
+| `/results` | `ResultsPage` |
+| `/plan/:destination` | `TripDetailsPage` |
+| `/itinerary/:id` | `ItineraryPage` |
+| `/saved` | `SavedItinerariesPage` |
+| `/how-it-works` | `HowItWorksPage` |
+| `/about` | `AboutPage` |
+| `/disclosure` | `DisclosurePage` |
 
-| Route | Component | Source |
-|---|---|---|
-| `/itinerary/:id` | `ItineraryPage` | `pages/ItineraryPage.tsx` (default export) |
-| `/how-it-works` | `HowItWorksPage` | `pages/HowItWorksPage.tsx` (default export) |
-| `/about` | `AboutPage` | `pages/AboutPage.tsx` (default export) |
-| `/disclosure` | `DisclosurePage` | `pages/DisclosurePage.tsx` (default export) |
-| `/saved` | `SavedItinerariesPage` | `pages/SavedItinerariesPage.tsx` (restyled — already existed; **confirm it's still wired**) |
+All pages lazy-loaded via `React.lazy` + `Suspense`.
 
-- **`/discover` must exist.** Several of these pages navigate/link to `/discover` (the home/plan route) — verified in `ItineraryPage` (`navigate('/discover')`), `SavedItinerariesPage` (fallback), `AboutPage` and `HowItWorksPage` (`<Link to="/discover">`). Ensure Terminal 1 registers `/discover`. `ItineraryPage` also routes to `/saved`; `ItineraryView` links to `/disclosure`.
+## 3. Affiliate / booking flow (end-to-end, verified)
 
-## 3. Frozen interfaces relied upon
+- Backend `RecommendationEngine.generate` attaches a server-owned `booking_url` to every bookable activity (`api/recommend.py`), `None` for `food`/`other`.
+- `Activity.booking_url: str | None` is a **declared** Pydantic field (`api/models.py`), so it serializes into the API JSON response.
+- Web `Activity.booking_url?: string` (`web/src/types/itinerary.ts`) — consumed by `DayCard`, which renders a **"Book"** link (new tab, `rel="noopener noreferrer"`) only when present, beside the existing Map link + pricing.
+- An FTC affiliate-disclosure banner in `ItineraryView` links to `/disclosure` (full disclosure + FAQ).
 
-These must exist after merge or this branch won't typecheck/build:
+## 4. Motion / `Reveal` usage
 
-- **`'../components/ui'` barrel** exporting `Container`, `Section`, `Reveal`. Only these three are used. `Reveal` is used **with children only** — no extra props (no `delay`/`stagger`).
-- **`'react-router-dom'`**: `Link`, `useNavigate`, `useParams`.
-- **`'framer-motion'`**: used **transitively via `Reveal`** — not imported directly in any of these 7 files.
-- **`web/src/types/itinerary.ts`**: `Activity` must gain **`booking_url?: string`**. `DayCard` reads `activity.booking_url` to gate the Book link. *(On this branch the field is not yet on the `Activity` interface — it lands with Terminal 1's type changes.)*
-- **`api/client.ts`**: `getItinerary(id)`, `saveItinerary(id)`, `listItineraries(page, perPage)`, `deleteItinerary(id)` — all present on this branch's `client.ts`. Confirm they survive the merge.
+The shipped `Reveal` (T1) supports `as` and `index` (stagger). List items in `SavedItinerariesPage` and `HowItWorksPage` use `<Reveal as="li" index={i}>` (valid `<ul>`/`<ol>` markup — no `<div>` wrapper inside a list), and `ItineraryView` day cards use `index={i}` for sequenced entrance motion. All animation is reduced-motion-safe (renders a plain element when the user prefers reduced motion).
 
-## 4. Reconciliation points / decisions for Terminal 1
+`SavedItinerariesPage` "View" is in-page (fetches + renders `ItineraryView` inline) rather than deep-linking to `/itinerary/:id` — original behavior preserved. The legacy `onNavigateHome?` prop falls back to `navigate('/discover')`.
 
-Flagging these rather than silently assuming:
+## 5. Verification (local)
 
-- **Saved → View is in-page, not a deep link.** `SavedItinerariesPage` keeps the original behavior: the `view()` handler fetches the itinerary and renders `ItineraryView` **inline**, rather than navigating to `/itinerary/:id`. If you prefer View to deep-link, it's a small swap inside `view()`.
-- **Legacy `onNavigateHome?` prop.** `SavedItinerariesPage` still accepts `onNavigateHome?: () => void`; when absent it falls back to router `navigate('/discover')`. Safe whether or not Terminal 1 passes the prop.
-- **`Reveal` has no stagger/delay.** The documented `Reveal` interface didn't specify one, so day-card/list entrances aren't sequenced. If the real `Reveal` supports `delay`/`stagger`, sequencing entrances later is purely additive — not required for merge.
+| Check | Result |
+|---|---|
+| `cd web && npm run build` (`tsc -b && vite build`) | ✅ clean — all pages compile & bundle |
+| `pytest` (mock provider) | ✅ **76 passed** |
+| Merge conflicts | none (branches disjoint) |
 
-## 5. Build / verification status
-
-**Honest status:** a full `npm run build` / typecheck could **not** be run in isolation on this branch. The frozen interfaces it depends on — the `components/ui` barrel, `react-router-dom`, `framer-motion`, and the `Activity.booking_url` field — live on Terminal 1's branch and resolve **only after merge**. (Confirmed on this branch: `components/ui` does not yet exist and `Activity.booking_url` is not yet declared, so a standalone typecheck would fail on unresolved imports — expected.)
-
-Imports, exports, navigate/link targets, and internal consistency across the 7 files were **verified by hand**. **Terminal 1 should run the typecheck/build after merge** to confirm the combined result.
+**Notes:**
+- The backend suite must run with `LLM_PROVIDER=mock` (CI default). The local `.env` pins `LLM_PROVIDER=gemini`; under that setting `api/main.py` instantiates the Gemini provider at import and the EOL `google.generativeai` `FutureWarning` trips `filterwarnings=error`. Pre-existing environmental condition, not introduced by the integration. (Follow-up: migrate `google-generativeai` → `google-genai`.)
+- `.env` (contains a live `GEMINI_API_KEY`) is gitignored and **not** part of any branch.
+- A first `tsc -b` after a branch switch may report spurious "file not found" from a stale `node_modules/.tmp/*.tsbuildinfo`; deleting it resolves it.
