@@ -38,6 +38,19 @@ class Settings(BaseSettings):
     gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
     max_tokens: int = Field(default=2000, alias="MAX_TOKENS", gt=0)
 
+    # ── Images (Unsplash proxy) ─────────────────────────────────────────────
+    unsplash_access_key: str | None = Field(
+        default=None, alias="UNSPLASH_ACCESS_KEY"
+    )
+
+    # ── Affiliate tag slots ─────────────────────────────────────────────────
+    # Config-driven placeholders, empty by default. With an empty slot we emit a
+    # clean plain deep link with NO tracking params; populate a slot to earn.
+    affiliate_tag_viator: str = Field(default="", alias="AFFILIATE_TAG_VIATOR")
+    affiliate_tag_gyg: str = Field(default="", alias="AFFILIATE_TAG_GYG")
+    affiliate_tag_booking: str = Field(default="", alias="AFFILIATE_TAG_BOOKING")
+    affiliate_tag_flights: str = Field(default="", alias="AFFILIATE_TAG_FLIGHTS")
+
     # ── Persistence ─────────────────────────────────────────────────────────
     database_url: str = Field(
         default="sqlite+aiosqlite:///./tai.db", alias="DATABASE_URL"
