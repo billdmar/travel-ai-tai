@@ -47,7 +47,7 @@ export default function ItineraryPage() {
               <button
                 type="button"
                 onClick={() => navigate('/discover')}
-                className="rounded-full border border-slate-300 px-6 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="rounded-full border border-ink-line px-6 py-2 text-sm font-medium text-ink-soft transition hover:border-ink-faint hover:bg-canvas-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
               >
                 Plan a trip
               </button>

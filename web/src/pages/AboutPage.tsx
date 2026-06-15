@@ -8,17 +8,17 @@ export default function AboutPage() {
         <div className="mx-auto max-w-2xl">
           <Reveal>
             <header>
-              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600">
+              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-accent-600">
                 About
               </p>
-              <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-900">
+              <h1 className="mt-2 text-4xl font-semibold tracking-tight text-ink">
                 Planning a trip should feel like the fun part
               </h1>
             </header>
           </Reveal>
 
           <Reveal>
-            <div className="mt-8 space-y-5 leading-relaxed text-slate-600">
+            <div className="mt-8 space-y-5 leading-relaxed text-ink-soft">
               <p>
                 Travel AI started from a simple frustration: the gap between “I’d love to go
                 somewhere” and an actual, bookable plan is full of open tabs, conflicting reviews,
@@ -40,29 +40,29 @@ export default function AboutPage() {
           </Reveal>
 
           <Reveal>
-            <div className="mt-10 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+            <div className="mt-10 rounded-2xl border border-ink-line/80 bg-canvas-raised p-6 shadow-sm">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-ink-faint">
                 What we value
               </h2>
-              <ul className="mt-3 space-y-2.5 text-sm leading-relaxed text-slate-600">
+              <ul className="mt-3 space-y-2.5 text-sm leading-relaxed text-ink-soft">
                 <li className="flex gap-2.5">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-400" />
                   <span>
-                    <strong className="font-medium text-slate-800">Made for you.</strong> Plans
+                    <strong className="font-medium text-ink">Made for you.</strong> Plans
                     follow your interests, not a one-size-fits-all template.
                   </span>
                 </li>
                 <li className="flex gap-2.5">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-400" />
                   <span>
-                    <strong className="font-medium text-slate-800">Actionable.</strong> Real costs,
+                    <strong className="font-medium text-ink">Actionable.</strong> Real costs,
                     real map links, real booking options where we have them.
                   </span>
                 </li>
                 <li className="flex gap-2.5">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-400" />
                   <span>
-                    <strong className="font-medium text-slate-800">Honest.</strong> We disclose
+                    <strong className="font-medium text-ink">Honest.</strong> We disclose
                     affiliate links and tell you where our data comes from.
                   </span>
                 </li>
@@ -74,14 +74,14 @@ export default function AboutPage() {
             <div className="mt-10 flex flex-wrap items-center gap-3">
               <Link
                 to="/discover"
-                className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center gap-2 rounded-full bg-accent-600 px-6 py-2.5 text-sm font-semibold text-canvas-raised shadow-sm transition hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
               >
                 Plan a trip
                 <span aria-hidden="true">→</span>
               </Link>
               <Link
                 to="/how-it-works"
-                className="text-sm font-medium text-brand-600 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="text-sm font-medium text-accent-600 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
               >
                 See how it works
               </Link>

@@ -60,16 +60,16 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
 
       {/* Summary / hero card — charcoal & restrained, with a single accent rule */}
       <Reveal>
-        <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-7 text-slate-100 shadow-sm sm:p-9">
+        <div className="overflow-hidden rounded-3xl border border-ink bg-ink p-7 text-canvas-sunken shadow-sm sm:p-9">
           <div className="flex flex-wrap items-start justify-between gap-5">
             <div className="min-w-0">
-              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-brand-300">
+              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-accent-300">
                 Your itinerary
               </p>
               <h2 className="mt-1.5 text-3xl font-semibold tracking-tight sm:text-4xl">
                 {preferences.destination}
               </h2>
-              <p className="mt-2 text-sm text-slate-400">
+              <p className="mt-2 text-sm text-ink-faint">
                 {preferences.start_date} → {preferences.end_date} · {days.length}{' '}
                 {days.length === 1 ? 'day' : 'days'}
               </p>
@@ -79,7 +79,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="inline-flex items-center gap-2 rounded-full bg-brand-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                  className="inline-flex items-center gap-2 rounded-full bg-accent-500 px-5 py-2 text-sm font-semibold text-canvas-raised shadow-sm transition hover:bg-accent-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 focus-visible:ring-offset-ink"
                 >
                   <svg
                     aria-hidden="true"
@@ -103,7 +103,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
                   type="button"
                   disabled
                   aria-busy="true"
-                  className="inline-flex cursor-wait items-center gap-2 rounded-full bg-brand-500/70 px-5 py-2 text-sm font-semibold text-white"
+                  className="inline-flex cursor-wait items-center gap-2 rounded-full bg-accent-500/70 px-5 py-2 text-sm font-semibold text-canvas-raised"
                 >
                   <svg
                     aria-hidden="true"
@@ -131,7 +131,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
               {saveState === 'saved' && (
                 <span
                   aria-label="Itinerary saved"
-                  className="inline-flex cursor-default items-center gap-2 rounded-full bg-emerald-500/15 px-5 py-2 text-sm font-semibold text-emerald-300 ring-1 ring-emerald-400/30"
+                  className="inline-flex cursor-default items-center gap-2 rounded-full bg-accent-500/15 px-5 py-2 text-sm font-semibold text-accent-300 ring-1 ring-accent-400/30"
                 >
                   <svg
                     aria-hidden="true"
@@ -147,28 +147,28 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
                 </span>
               )}
               <div className="text-right">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Est. total</p>
-                <p className="text-3xl font-semibold tabular-nums text-white">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-ink-faint">Est. total</p>
+                <p className="text-3xl font-semibold tabular-nums text-canvas-raised">
                   {money(total_estimated_cost_usd)}{' '}
-                  <span className="text-sm font-normal text-slate-400">{currency}</span>
+                  <span className="text-sm font-normal text-ink-faint">{currency}</span>
                 </p>
-                <p className="text-[11px] text-slate-500">Sum of all activities</p>
+                <p className="text-[11px] text-ink-faint">Sum of all activities</p>
               </div>
             </div>
           </div>
-          {summary && <p className="mt-6 max-w-2xl leading-relaxed text-slate-300">{summary}</p>}
+          {summary && <p className="mt-6 max-w-2xl leading-relaxed text-ink-line">{summary}</p>}
           <div className="mt-6 flex flex-wrap gap-2 text-xs font-medium">
-            <span className="rounded-full bg-white/5 px-3 py-1 capitalize text-slate-300 ring-1 ring-white/10">
+            <span className="rounded-full bg-canvas-raised/5 px-3 py-1 capitalize text-ink-line ring-1 ring-canvas-raised/10">
               {preferences.pace}
             </span>
-            <span className="rounded-full bg-white/5 px-3 py-1 capitalize text-slate-300 ring-1 ring-white/10">
+            <span className="rounded-full bg-canvas-raised/5 px-3 py-1 capitalize text-ink-line ring-1 ring-canvas-raised/10">
               {preferences.travel_style}
             </span>
-            <span className="rounded-full bg-white/5 px-3 py-1 text-slate-300 ring-1 ring-white/10">
+            <span className="rounded-full bg-canvas-raised/5 px-3 py-1 text-ink-line ring-1 ring-canvas-raised/10">
               {preferences.group_size} {preferences.group_size === 1 ? 'traveler' : 'travelers'}
             </span>
             {provider && (
-              <span className="rounded-full bg-white/5 px-3 py-1 capitalize text-slate-400 ring-1 ring-white/10">
+              <span className="rounded-full bg-canvas-raised/5 px-3 py-1 capitalize text-ink-faint ring-1 ring-canvas-raised/10">
                 via {provider}
               </span>
             )}
@@ -177,10 +177,10 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
       </Reveal>
 
       {/* FTC affiliate disclosure banner */}
-      <div className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+      <div className="flex items-start gap-2.5 rounded-xl border border-ink-line bg-canvas-sunken px-4 py-3 text-xs text-ink-faint">
         <svg
           aria-hidden="true"
-          className="mt-px h-4 w-4 shrink-0 text-slate-400"
+          className="mt-px h-4 w-4 shrink-0 text-ink-faint"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -196,7 +196,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
           Some links are affiliate links; we may earn a commission at no cost to you.{' '}
           <Link
             to="/disclosure"
-            className="font-medium text-brand-600 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="font-medium text-accent-600 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
           >
             Learn more
           </Link>
@@ -215,14 +215,14 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
 
       {/* Tips */}
       {tips.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+        <div className="rounded-2xl border border-ink-line bg-canvas-raised p-6 shadow-sm">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-ink-faint">
             Travel tips
           </h3>
           <ul className="space-y-2.5">
             {tips.map((tip, i) => (
-              <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-slate-600">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
+              <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-ink-soft">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-400" />
                 <span>{tip}</span>
               </li>
             ))}
@@ -235,7 +235,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
           <button
             type="button"
             onClick={onReset}
-            className="rounded-full border border-slate-300 px-6 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            className="rounded-full border border-ink-line px-6 py-2 text-sm font-medium text-ink-soft transition hover:border-ink-faint hover:bg-canvas-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
           >
             Plan another trip
           </button>
@@ -247,17 +247,17 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg motion-safe:animate-fadeIn"
+          className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-ink-line bg-canvas-raised px-4 py-3 shadow-lg motion-safe:animate-fadeIn"
         >
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-xs text-white">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-500 text-xs text-canvas-raised">
             ✓
           </span>
-          <span className="text-sm font-medium text-slate-800">Saved to your itineraries.</span>
+          <span className="text-sm font-medium text-ink">Saved to your itineraries.</span>
           {onViewSaved && (
             <button
               type="button"
               onClick={onViewSaved}
-              className="rounded text-sm font-semibold text-brand-600 hover:text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="rounded text-sm font-semibold text-accent-600 hover:text-accent-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             >
               View in Saved →
             </button>

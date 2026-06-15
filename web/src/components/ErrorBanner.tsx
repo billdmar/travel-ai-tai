@@ -114,7 +114,7 @@ export default function ErrorBanner({ error, onDismiss, onRetry }: ErrorBannerPr
   return (
     <div
       role="alert"
-      className={`mx-auto max-w-4xl rounded-lg border p-4 shadow-sm ${toneClasses[parsed.tone]}`}
+      className={`mx-auto max-w-4xl rounded-lg border p-4 shadow-frame ${toneClasses[parsed.tone]}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -132,7 +132,7 @@ export default function ErrorBanner({ error, onDismiss, onRetry }: ErrorBannerPr
               type="button"
               onClick={onRetry}
               disabled={retryDisabled}
-              className="rounded-md bg-white/70 px-3 py-1 text-sm font-medium hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-md bg-canvas-raised/70 px-3 py-1 text-sm font-medium hover:bg-canvas-raised disabled:cursor-not-allowed disabled:opacity-50"
             >
               Retry
             </button>
@@ -142,7 +142,7 @@ export default function ErrorBanner({ error, onDismiss, onRetry }: ErrorBannerPr
               type="button"
               onClick={onDismiss}
               aria-label="Dismiss"
-              className="rounded-md px-2 py-1 text-sm font-medium hover:bg-white/50"
+              className="rounded-md px-2 py-1 text-sm font-medium hover:bg-canvas-raised/50"
             >
               ✕
             </button>

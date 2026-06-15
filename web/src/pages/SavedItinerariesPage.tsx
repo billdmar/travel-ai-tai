@@ -20,11 +20,11 @@ function SkeletonList() {
       {[0, 1, 2].map((i) => (
         <li
           key={i}
-          className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+          className="flex items-center justify-between gap-4 rounded-2xl border border-ink-line bg-canvas-raised p-5 shadow-sm"
         >
           <div className="w-full animate-pulse space-y-2 motion-reduce:animate-none">
-            <div className="h-4 w-1/3 rounded bg-slate-200" />
-            <div className="h-3 w-1/2 rounded bg-slate-100" />
+            <div className="h-4 w-1/3 rounded bg-ink-line" />
+            <div className="h-3 w-1/2 rounded bg-canvas-sunken" />
           </div>
         </li>
       ))}
@@ -96,7 +96,7 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
             <button
               type="button"
               onClick={() => setSelected(null)}
-              className="rounded text-sm font-medium text-brand-600 hover:text-brand-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="rounded text-sm font-medium text-accent-600 hover:text-accent-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
             >
               ← Back to saved itineraries
             </button>
@@ -112,13 +112,13 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
       <Section>
         <div className="mx-auto max-w-4xl space-y-6">
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600">
+            <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-accent-600">
               Your trips
             </p>
-            <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-slate-900">
+            <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-ink">
               Saved itineraries
             </h1>
-            <p className="mt-1.5 text-slate-500">Browse trips you have saved.</p>
+            <p className="mt-1.5 text-ink-faint">Browse trips you have saved.</p>
           </div>
 
           {error != null && (
@@ -128,10 +128,10 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
           {loading ? (
             <SkeletonList />
           ) : items.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+            <div className="rounded-2xl border border-dashed border-ink-line bg-canvas-raised p-12 text-center">
               <svg
                 aria-hidden="true"
-                className="mx-auto h-10 w-10 text-slate-300"
+                className="mx-auto h-10 w-10 text-ink-line"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -143,14 +143,14 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
                   d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"
                 />
               </svg>
-              <h2 className="mt-4 font-semibold text-slate-700">No saved itineraries yet</h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <h2 className="mt-4 font-semibold text-ink-soft">No saved itineraries yet</h2>
+              <p className="mt-1 text-sm text-ink-faint">
                 Generate a trip and hit Save to keep it here for later.
               </p>
               <button
                 type="button"
                 onClick={goPlan}
-                className="mt-5 rounded-full bg-brand-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="mt-5 rounded-full bg-accent-600 px-5 py-2 text-sm font-medium text-canvas-raised transition hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
               >
                 Plan a trip
               </button>
@@ -159,10 +159,10 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
             <ul className="space-y-3">
               {items.map((it) => (
                 <Reveal key={it.id}>
-                  <li className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition hover:border-slate-300 hover:shadow-md">
+                  <li className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-ink-line/80 bg-canvas-raised p-5 shadow-sm transition hover:border-ink-line hover:shadow-md">
                     <div>
-                      <p className="font-semibold text-slate-900">{it.destination}</p>
-                      <p className="mt-0.5 text-sm text-slate-500">
+                      <p className="font-semibold text-ink">{it.destination}</p>
+                      <p className="mt-0.5 text-sm text-ink-faint">
                         {it.start_date} → {it.end_date} ·{' '}
                         <span className="tabular-nums">{money(it.total_estimated_cost_usd)}</span>
                       </p>
@@ -171,7 +171,7 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
                       <button
                         type="button"
                         onClick={() => view(it.id)}
-                        className="rounded-full bg-brand-600 px-5 py-1.5 text-sm font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                        className="rounded-full bg-accent-600 px-5 py-1.5 text-sm font-medium text-canvas-raised transition hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
                       >
                         View
                       </button>
@@ -188,7 +188,7 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
                           <button
                             type="button"
                             onClick={() => setConfirmId(null)}
-                            className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                            className="rounded-full border border-ink-line px-3.5 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-canvas-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
                           >
                             Cancel
                           </button>
@@ -198,7 +198,7 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
                           type="button"
                           onClick={() => setConfirmId(it.id)}
                           aria-label={`Delete itinerary for ${it.destination}`}
-                          className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                          className="rounded-full border border-ink-line px-3.5 py-1.5 text-sm font-medium text-ink-soft transition hover:bg-canvas-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
                         >
                           Delete
                         </button>
@@ -216,18 +216,18 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
                 type="button"
                 disabled={page <= 1}
                 onClick={() => load(page - 1)}
-                className="rounded-full border border-slate-300 px-5 py-1.5 text-sm font-medium text-slate-700 transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="rounded-full border border-ink-line px-5 py-1.5 text-sm font-medium text-ink-soft transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
               >
                 Previous
               </button>
-              <span className="text-sm text-slate-500">
+              <span className="text-sm text-ink-faint">
                 Page {page} of {totalPages}
               </span>
               <button
                 type="button"
                 disabled={page >= totalPages}
                 onClick={() => load(page + 1)}
-                className="rounded-full border border-slate-300 px-5 py-1.5 text-sm font-medium text-slate-700 transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="rounded-full border border-ink-line px-5 py-1.5 text-sm font-medium text-ink-soft transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
               >
                 Next
               </button>

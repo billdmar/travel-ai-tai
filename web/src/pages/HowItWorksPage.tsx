@@ -32,13 +32,13 @@ export default function HowItWorksPage() {
         <div className="mx-auto max-w-3xl">
           <Reveal>
             <header className="text-center">
-              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600">
+              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-accent-600">
                 How it works
               </p>
-              <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-900">
+              <h1 className="mt-2 text-4xl font-semibold tracking-tight text-ink">
                 From hobbies to a finished itinerary
               </h1>
-              <p className="mx-auto mt-3 max-w-xl leading-relaxed text-slate-500">
+              <p className="mx-auto mt-3 max-w-xl leading-relaxed text-ink-faint">
                 Travel AI turns what you enjoy into a trip you can actually take — in three steps.
               </p>
             </header>
@@ -47,13 +47,13 @@ export default function HowItWorksPage() {
           <ol className="mt-12 space-y-5">
             {STEPS.map((step) => (
               <Reveal key={step.n}>
-                <li className="flex gap-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7">
-                  <span className="text-2xl font-semibold tabular-nums text-brand-400">
+                <li className="flex gap-5 rounded-2xl border border-ink-line/80 bg-canvas-raised p-6 shadow-sm sm:p-7">
+                  <span className="text-2xl font-semibold tabular-nums text-accent-400">
                     {step.n}
                   </span>
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-900">{step.title}</h2>
-                    <p className="mt-1.5 leading-relaxed text-slate-500">{step.body}</p>
+                    <h2 className="text-lg font-semibold text-ink">{step.title}</h2>
+                    <p className="mt-1.5 leading-relaxed text-ink-faint">{step.body}</p>
                   </div>
                 </li>
               </Reveal>
@@ -64,7 +64,7 @@ export default function HowItWorksPage() {
             <div className="mt-12 text-center">
               <Link
                 to="/discover"
-                className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center gap-2 rounded-full bg-accent-600 px-6 py-2.5 text-sm font-semibold text-canvas-raised shadow-sm transition hover:bg-accent-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
               >
                 Start planning
                 <span aria-hidden="true">→</span>
