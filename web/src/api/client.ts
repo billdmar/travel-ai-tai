@@ -1,4 +1,9 @@
 import type {
+  ImageResult,
+  RecommendRequest,
+  RecommendResponse,
+} from '../types/discovery'
+import type {
   ItineraryListResponse,
   ItineraryResponse,
   TravelPreferences,
@@ -105,4 +110,30 @@ export function validatePreferences(prefs: TravelPreferences): Promise<ValidateR
     method: 'POST',
     body: JSON.stringify(prefs),
   })
+}
+
+/**
+ * Ask the backend to recommend 4-6 destinations from the user's hobbies and an
+ * optional free-text note. FROZEN contract: POST /api/v1/destinations/recommend.
+ */
+export function recommendDestinations(req: RecommendRequest): Promise<RecommendResponse> {
+  return request<RecommendResponse>(`${BASE}/destinations/recommend`, {
+    method: 'POST',
+    body: JSON.stringify(req),
+  })
+}
+
+/**
+ * Resolve a photo for a destination/place query. FROZEN contract:
+ * GET /api/v1/images?query=... On any failure (network, 4xx/5xx) we return a
+ * synthetic `fallback: true` result so <DestinationImage> can render a bundled
+ * asset instead of throwing — image fetches must never break a page.
+ */
+export async function fetchImage(query: string): Promise<ImageResult> {
+  const qs = new URLSearchParams({ query })
+  try {
+    return await request<ImageResult>(`${BASE}/images?${qs.toString()}`)
+  } catch {
+    return { url: null, thumb_url: null, alt: query, credit: null, fallback: true }
+  }
 }
