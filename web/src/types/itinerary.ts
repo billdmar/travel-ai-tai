@@ -31,6 +31,8 @@ export interface Activity {
   estimated_cost_usd: number
   category: ActivityCategory
   map_url: string
+  // Optional affiliate/booking deep link (Terminal 4 backend may populate it).
+  booking_url?: string
 }
 
 export interface ItineraryDay {
