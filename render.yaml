@@ -31,3 +31,9 @@ services:
       # In-memory cache (no Redis needed on the free tier).
       - key: CACHE_BACKEND
         value: memory
+      # Optional, all unset by default — the redesign works fully without them:
+      #   UNSPLASH_ACCESS_KEY  → real destination photos via GET /api/v1/images;
+      #                          unset ⇒ bundled .webp fallback art is served.
+      #   AFFILIATE_TAG_VIATOR / _GYG / _BOOKING / _FLIGHTS → partner tags on the
+      #                          booking deep links; unset ⇒ clean untracked links.
+      # Add any of these as dashboard secrets (never commit real values here).
