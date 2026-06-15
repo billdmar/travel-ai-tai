@@ -69,6 +69,8 @@ class Activity(BaseModel):
     estimated_cost_usd: float = Field(..., ge=0)
     category: ActivityCategory
     map_url: str
+    #: Server-filled affiliate booking link (None until the engine attaches one).
+    booking_url: str | None = None
 
 
 class ItineraryDay(BaseModel):
@@ -164,3 +166,49 @@ class ItineraryListResponse(BaseModel):
     per_page: int
     total: int
     items: list[ItineraryListItem]
+
+
+# ── Discovery: hobby-driven destination recommendations ─────────────────────
+# The discovery flow keeps the same two-layer split as itineraries: the model
+# produces the creative ``DestinationRecommendation`` content, and the API
+# returns it inside the ``DestinationRecommendationResponse`` envelope.
+
+#: Discovery accepts 1-N hobbies; cap mirrors ``MAX_INTERESTS`` on preferences.
+MAX_HOBBIES = MAX_INTERESTS
+
+
+class HobbyRecommendationRequest(BaseModel):
+    """User input for the discovery flow: hobbies plus optional free text."""
+
+    hobbies: list[str] = Field(default_factory=list, max_length=MAX_HOBBIES)
+    free_text: str | None = Field(None, max_length=2000)
+
+
+class DestinationRecommendation(BaseModel):
+    """One recommended destination matched to the user's hobbies.
+
+    LLM-facing creative content only — the model is asked to emit exactly this
+    shape (the JSON schema is embedded in the discovery system prompt).
+    """
+
+    name: str
+    country: str
+    why_it_fits: str
+    tags: list[str]
+    image_query: str
+    best_season: str
+
+
+class DestinationRecommendationResponse(BaseModel):
+    """Discovery response envelope wrapping the recommended destinations."""
+
+    recommendations: list[DestinationRecommendation]
+
+    @field_validator("recommendations")
+    @classmethod
+    def _non_empty(
+        cls, v: list[DestinationRecommendation]
+    ) -> list[DestinationRecommendation]:
+        if not v:
+            raise ValueError("must contain at least one recommendation")
+        return v
