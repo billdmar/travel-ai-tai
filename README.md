@@ -28,11 +28,23 @@ multi-step frontend.
   enforces JSON output, and validates every response against a Pydantic schema. The LLM
   never invents server-owned fields (id, timestamps) — those are attached server-side.
 - **Pluggable LLM providers** — OpenAI (default), a deterministic **mock** (used by all
-  tests and local dev, zero cost / no key), and an optional LangChain wrapper.
+  tests and local dev, zero cost / no key), Gemini, and an optional LangChain wrapper.
+- **Destination discovery** — turn a few hobbies (plus optional free text) into 4–6
+  tailored destination ideas via `POST /api/v1/destinations/recommend`, each with a fit
+  rationale, tags, best season, and an image query.
+- **Affiliate booking links** — every bookable activity gets a server-owned `booking_url`
+  (Viator/GetYourGuide for attractions & leisure, Booking.com for stays, a flights search
+  for transport). Affiliate tags are config-driven and empty by default, so links are
+  clean plain deep links with **no tracking params** until you set a tag.
+- **Server-side image proxy** — `GET /api/v1/images?query=` proxies Unsplash so the access
+  key never reaches the browser; with no key (or any upstream failure) it returns a
+  graceful `{fallback:true}` envelope and the UI shows a bundled placeholder.
 - **Production-style API** — async handlers, response caching, per-IP rate limiting,
   retry/backoff, soft-delete, pagination, and auto-generated OpenAPI docs at `/docs`.
-- **Polished frontend** — a 4-step preference wizard, collapsible day cards, a saved-trips
-  page, and friendly error states for validation / rate-limit / LLM-unavailable cases.
+- **Polished frontend** — a destination-discovery flow, multi-step preference wizard,
+  collapsible day cards with Map + Book links, an FTC affiliate-disclosure banner, a
+  saved-trips page, and friendly error states for validation / rate-limit / LLM-unavailable
+  cases.
 
 ## Architecture
 
@@ -150,10 +162,12 @@ The backend is built to serve many concurrent users; these are the concrete mech
 
 ## Testing
 
-A **36-test** suite runs entirely against the mock LLM provider — no API key and no
+A **76-test** suite runs entirely against the mock LLM provider — no API key and no
 network — so it's fast and deterministic in CI. Coverage spans the cache-hit identity
-guarantee, rate-limit isolation (429), error mapping (503/502), request validation, and a
-concurrency smoke test that fires many simultaneous requests and asserts they all succeed.
+guarantee, rate-limit isolation (429), error mapping (503/502), request validation,
+destination discovery, affiliate-link generation (plain vs. tagged), the Unsplash image
+proxy (fallback + payload parsing), and a concurrency smoke test that fires many
+simultaneous requests and asserts they all succeed.
 
 ## Development
 
