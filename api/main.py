@@ -33,7 +33,13 @@ from api.llm.provider import get_provider
 from api.ratelimit import limiter
 from api.recommend import RecommendationEngine
 from api.routes import health as health_routes
+from api.routes import images as image_routes
 from api.routes import itineraries as itinerary_routes
+
+try:  # discovery router is provided by a sibling branch; tolerate its absence.
+    from api.routes.destinations import router as destinations_router
+except ImportError:  # pragma: no cover - present only after the merge.
+    destinations_router = None
 
 if TYPE_CHECKING:
     from fastapi.responses import Response
@@ -95,6 +101,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # over the static SPA mount registered last.
     app.include_router(health_routes.router)
     app.include_router(itinerary_routes.router)
+    app.include_router(image_routes.router)
+    if destinations_router is not None:
+        app.include_router(destinations_router)
 
     _mount_spa(app)
 
