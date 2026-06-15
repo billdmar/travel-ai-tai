@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
-from api.llm.mock_provider import MockLLMProvider, build_mock_itinerary
+from api.llm.mock_provider import (
+    MockLLMProvider,
+    _parse_itinerary_request,
+    build_mock_itinerary,
+)
+from api.llm.prompts.itinerary import build_user_prompt
 from api.models import GeneratedItinerary, ItineraryResponse, TravelPreferences
 
 
@@ -14,6 +19,47 @@ def test_build_mock_itinerary_validates() -> None:
     generated = GeneratedItinerary.model_validate(raw)
     assert generated.days
     assert generated.currency == "USD"
+
+
+def test_mock_place_names_do_not_embed_destination() -> None:
+    # Place names stay destination-agnostic so the server can append the real
+    # destination cleanly (no doubled "Rome, Italy ... , Rome" map/booking links).
+    raw = build_mock_itinerary(destination="Rome, Italy", num_days=2)
+    places = [a["place"] for day in raw["days"] for a in day["activities"]]
+    assert places  # non-empty
+    assert all("Rome" not in p and "Italy" not in p for p in places)
+
+
+def test_parse_itinerary_request_extracts_destination_and_length() -> None:
+    prefs = TravelPreferences(
+        destination="Rome, Italy",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 2),
+        budget_usd=1200.0,
+    )
+    destination, num_days = _parse_itinerary_request(build_user_prompt(prefs))
+    assert destination == "Rome, Italy"
+    assert num_days == 2
+
+
+def test_parse_itinerary_request_falls_back_when_unmatched() -> None:
+    # Robust to non-matching prompts (e.g. the bare "u" used in other tests).
+    assert _parse_itinerary_request("u") == ("Tokyo, Japan", 3)
+
+
+async def test_mock_complete_honors_requested_destination() -> None:
+    prefs = TravelPreferences(
+        destination="Rome, Italy",
+        start_date=date(2026, 8, 1),
+        end_date=date(2026, 8, 3),
+        budget_usd=1200.0,
+    )
+    raw = await MockLLMProvider().complete(
+        system="days schema", user=build_user_prompt(prefs), max_tokens=100
+    )
+    generated = GeneratedItinerary.model_validate_json(raw)
+    assert len(generated.days) == 3  # honors the 3-day request
+    assert "Rome, Italy" in generated.summary
 
 
 async def test_mock_complete_output_validates() -> None:

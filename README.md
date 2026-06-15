@@ -162,7 +162,7 @@ The backend is built to serve many concurrent users; these are the concrete mech
 
 ## Testing
 
-A **76-test** suite runs entirely against the mock LLM provider — no API key and no
+An **80-test** suite runs entirely against the mock LLM provider — no API key and no
 network — so it's fast and deterministic in CI. Coverage spans the cache-hit identity
 guarantee, rate-limit isolation (429), error mapping (503/502), request validation,
 destination discovery, affiliate-link generation (plain vs. tagged), the Unsplash image

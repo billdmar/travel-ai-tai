@@ -15,6 +15,7 @@ branches on a stable marker in the system prompt (the discovery schema names a
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, timedelta
 
 
@@ -27,43 +28,67 @@ def build_mock_itinerary(
     start: date | None = None,
     num_days: int = 3,
 ) -> dict:
-    """Build a mock ``GeneratedItinerary`` dict for ``num_days`` days."""
+    """Build a mock ``GeneratedItinerary`` dict for ``num_days`` days.
+
+    Place names are kept destination-agnostic (e.g. "Historic Old Town") so the
+    server can append the real destination to build clean, searchable map and
+    booking links — rather than baking the destination into the name, which
+    produced awkward doubled queries like "Rome, Italy highlight 1A, Rome".
+    """
     start = start or date(2026, 7, 1)
     day_themes = [
-        "Temples & Traditional Culture",
-        "Modern Tokyo & Technology",
+        "Landmarks & Old Town",
+        "Museums & Local Culture",
         "Food, Markets & Local Life",
-        "Day Trip & Nature",
+        "Nature & Day Trip",
         "Art, Shopping & Leisure",
+    ]
+    # Per-slot rotating names, indexed by day, so multi-day trips vary without
+    # repeating and read naturally once the destination is appended downstream.
+    morning_sights = [
+        "Historic Old Town",
+        "Landmark Cathedral",
+        "Iconic Viewpoint",
+        "National Museum",
+        "Waterfront Promenade",
+    ]
+    afternoon_walks = [
+        "Riverside Park Stroll",
+        "Artisan Shopping District",
+        "Botanical Gardens",
+        "Scenic Hilltop Walk",
+        "Historic Market Quarter",
     ]
     days = []
     total = 0.0
     for i in range(num_days):
         d = start + timedelta(days=i)
+        sight = morning_sights[i % len(morning_sights)]
+        walk = afternoon_walks[i % len(afternoon_walks)]
         activities = [
             {
                 "time": "09:00",
-                "place": f"{destination} highlight {i + 1}A",
+                "place": sight,
                 "description": "Morning visit to a signature local attraction.",
                 "estimated_cost_usd": 15.0,
                 "category": "attraction",
-                "map_url": _osm(f"{destination} attraction {i + 1}"),
+                "map_url": _osm(f"{sight} {destination}"),
             },
             {
                 "time": "13:00",
-                "place": f"Local eatery near {destination}",
+                "place": "Local Market Food Hall",
                 "description": "Lunch featuring regional specialties.",
                 "estimated_cost_usd": 25.0,
                 "category": "food",
-                "map_url": _osm(f"{destination} restaurant"),
+                "map_url": _osm(f"restaurant {destination}"),
             },
             {
                 "time": "16:00",
-                "place": f"{destination} neighborhood walk {i + 1}",
+                "place": walk,
                 "description": "Afternoon stroll through a characterful district.",
                 "estimated_cost_usd": 0.0,
                 "category": "leisure",
-                "map_url": _osm(f"{destination} district {i + 1}"),
+                "map_url": _osm(f"{walk} {destination}"),
             },
         ]
         day_cost = sum(a["estimated_cost_usd"] for a in activities)
@@ -274,7 +299,10 @@ class MockLLMProvider:
         """
         if _is_discovery_prompt(system):
             return json.dumps(build_mock_destinations(_parse_hobbies(user)))
-        return json.dumps(build_mock_itinerary())
+        destination, num_days = _parse_itinerary_request(user)
+        return json.dumps(
+            build_mock_itinerary(destination=destination, num_days=num_days)
+        )
 
 
 def _parse_hobbies(user: str) -> list[str]:
@@ -292,3 +320,27 @@ def _parse_hobbies(user: str) -> list[str]:
     # Stop at the first sentence boundary; hobbies are a single comma list.
     tail = tail.split(".")[0].split("\n")[0]
     return [h.strip() for h in tail.split(",") if h.strip()]
+
+
+# Matches the itinerary user prompt built by ``build_user_prompt``:
+#   "Plan a {pace} {N}-day trip to {destination} from {date} to ..."
+_ITINERARY_RE = re.compile(
+    r"(?P<days>\d+)-day trip to (?P<destination>.+?) from ", re.IGNORECASE
+)
+
+
+def _parse_itinerary_request(user: str) -> tuple[str, int]:
+    """Extract ``(destination, num_days)`` from the itinerary user prompt.
+
+    Best-effort: falls back to the ``build_mock_itinerary`` defaults
+    ("Tokyo, Japan", 3 days) if the prompt doesn't match the expected shape, so
+    the mock stays robust to prompt changes.
+    """
+    match = _ITINERARY_RE.search(user)
+    if not match:
+        return "Tokyo, Japan", 3
+    destination = match.group("destination").strip()
+    num_days = int(match.group("days"))
+    # Mirror build_mock_itinerary's themed-day rotation cap (1-5 days of content).
+    num_days = max(1, min(num_days, 5))
+    return destination or "Tokyo, Japan", num_days
