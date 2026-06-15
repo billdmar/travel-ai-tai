@@ -2,8 +2,8 @@
 # https://render.com/docs/blueprint-spec
 #
 # Deploys the unified Docker image (FastAPI serving the built React SPA) as a
-# free web service. Runs in mock-LLM mode by default, so it needs no API key
-# and no external database (SQLite is created in-container).
+# free web service. Runs with the real Gemini provider; GEMINI_API_KEY is a
+# dashboard-only secret (sync: false) so it is never committed here.
 #
 # To deploy: push this file, then on Render choose "New +" → "Blueprint",
 # pick this repo, and approve. Render builds the Dockerfile and binds $PORT.
@@ -16,18 +16,17 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
-      # Mock provider → no API key required; the live demo always works
-      # instantly with deterministic sample itineraries. The server still owns
-      # the always-valid Google Maps links and the reconciled pricing, so the
-      # demo exercises those features fully.
-      #
-      # To run real Gemini in prod instead: set LLM_PROVIDER=gemini and add
-      # GEMINI_API_KEY as a dashboard secret (never commit a key here), then add
-      # google-generativeai back to requirements.txt and use a base image with a
-      # build toolchain (grpcio/protobuf). Note the free-tier Gemini quota is
-      # small — pay-as-you-go billing may be needed for reliable live use.
+      # Real Gemini in production (model defaults to gemini-2.0-flash in code).
+      # The Gemini SDK ships in the prod image (see requirements.txt), so this
+      # provider loads at startup. NOTE: the free-tier Gemini quota is small —
+      # if it is exhausted the API returns 503 (Retry-After); for reliable live
+      # use, enable pay-as-you-go billing on the key.
       - key: LLM_PROVIDER
-        value: mock
+        value: gemini
+      # Secret — set in the Render dashboard, NEVER committed. `sync: false`
+      # keeps the blueprint from managing (or clearing) the dashboard value.
+      - key: GEMINI_API_KEY
+        sync: false
       # In-memory cache (no Redis needed on the free tier).
       - key: CACHE_BACKEND
         value: memory

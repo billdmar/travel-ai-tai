@@ -2,7 +2,10 @@
 
 Uses the official ``google-generativeai`` SDK with JSON output and a tenacity
 retry policy (3 attempts, exponential backoff) on transient rate-limit /
-timeout / service errors. After the retries are exhausted it raises
+timeout / service errors. After the retries are exhausted, behavior depends on
+``Settings.gemini_fallback_to_mock`` (default true): we serve a deterministic
+mock completion so the live demo always returns something even when the
+free-tier quota is exhausted; with the flag off we raise
 :class:`~api.recommend.LLMUnavailableError`, which the API layer maps to a
 ``503`` with a ``Retry-After`` header. The ``google.generativeai`` package is
 imported lazily so it is never required for the mock path.
@@ -90,5 +93,15 @@ class GeminiLLMProvider(LLMProvider):
         try:
             return await _call()
         except transient as exc:
+            if self._settings.gemini_fallback_to_mock:
+                logger.warning(
+                    "Gemini unavailable after retries (%s); serving mock fallback",
+                    exc,
+                )
+                # MockLLMProvider branches discovery vs itinerary on the system
+                # prompt, so this covers both flows with a single delegation.
+                from api.llm.mock_provider import MockLLMProvider
+
+                return await MockLLMProvider().complete(system, user, max_tokens)
             logger.warning("Gemini unavailable after retries: %s", exc)
             raise LLMUnavailableError(str(exc)) from exc

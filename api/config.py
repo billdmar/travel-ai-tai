@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     openai_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MODEL")
     gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
     max_tokens: int = Field(default=2000, alias="MAX_TOKENS", gt=0)
+    # When a Gemini call fails after retries (e.g. free-tier quota / 429), serve a
+    # mock result instead of a 503 so the live demo always returns something.
+    gemini_fallback_to_mock: bool = Field(
+        default=True, alias="GEMINI_FALLBACK_TO_MOCK"
+    )
 
     # ── Images (Unsplash proxy) ─────────────────────────────────────────────
     unsplash_access_key: str | None = Field(
