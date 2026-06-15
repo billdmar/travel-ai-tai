@@ -1,3 +1,6 @@
+/* Inter variable font (self-hosted via fontsource — no external request). */
+@import '@fontsource-variable/inter';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,12 +17,38 @@ html {
 }
 
 body {
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+    sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #faf8f4; /* canvas */
+  color: #2b2a28; /* ink */
 }
 
+/* Accessible focus ring in the accent color, used app-wide. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #3f7a72;
+  outline-offset: 2px;
+}
+
+/* MANDATORY reduced-motion fallback: kill smooth scroll and any animation/
+   transition so parallax, reveals, and staggered cards become instant. The
+   JS primitives also no-op via usePrefersReducedMotion(); this is the CSS
+   backstop for anything declarative. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }
