@@ -1,0 +1,127 @@
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { DestinationImage } from '../components/DestinationImage'
+import type {
+  DestinationRecommendation,
+  PlanLocationState,
+  ResultsLocationState,
+} from '../types/discovery'
+import { Button, Container, Reveal, Section } from '../components/ui'
+
+export default function ResultsPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const state = location.state as ResultsLocationState | null
+
+  // Direct navigation / refresh loses router state — guide the user back.
+  if (!state || !state.recommendations?.length) {
+    return (
+      <Section>
+        <Container narrow>
+          <Reveal>
+            <h1 className="text-3xl font-semibold tracking-tightish text-ink">
+              Let’s start with your interests.
+            </h1>
+            <p className="mt-4 text-ink-soft">
+              We need to know what you love before we can suggest where to go.
+            </p>
+            <div className="mt-8">
+              <Button to="/discover" size="lg">
+                Go to Discover →
+              </Button>
+            </div>
+          </Reveal>
+        </Container>
+      </Section>
+    )
+  }
+
+  const { hobbies, recommendations } = state
+
+  const goPlan = (rec: DestinationRecommendation) => {
+    const planState: PlanLocationState = { hobbies, recommendation: rec }
+    navigate(`/plan/${encodeURIComponent(rec.name)}`, { state: planState })
+  }
+
+  return (
+    <Section size="cozy">
+      <Container>
+        <Reveal>
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent-700">
+            Step 2 of 2
+          </p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tightish text-ink">
+            Destinations made for you.
+          </h1>
+          {hobbies.length > 0 ? (
+            <p className="mt-4 text-lg text-ink-soft">
+              Based on{' '}
+              <span className="text-ink">{hobbies.join(', ').toLowerCase()}</span>.{' '}
+              <Link
+                to="/discover"
+                className="text-accent-600 underline-offset-4 hover:underline"
+              >
+                Refine
+              </Link>
+            </p>
+          ) : null}
+        </Reveal>
+
+        <div className="mt-12 grid gap-8 sm:grid-cols-2">
+          {recommendations.map((rec, i) => (
+            <Reveal key={`${rec.name}-${rec.country}`} index={i} as="article">
+              <button
+                type="button"
+                onClick={() => goPlan(rec)}
+                className="group flex h-full w-full flex-col overflow-hidden rounded-3xl border border-ink-line bg-canvas-raised text-left shadow-frame transition-shadow hover:shadow-lift focus-visible:shadow-lift"
+              >
+                <DestinationImage
+                  query={rec.image_query || `${rec.name} ${rec.country}`}
+                  alt={`${rec.name}, ${rec.country}`}
+                  aspect="aspect-[16/10]"
+                  className="rounded-none"
+                />
+                <div className="flex flex-1 flex-col p-6">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 className="text-2xl font-semibold tracking-tightish text-ink">
+                      {rec.name}
+                    </h2>
+                    <span className="shrink-0 text-sm text-ink-faint">
+                      {rec.country}
+                    </span>
+                  </div>
+                  <p className="mt-3 leading-relaxed text-ink-soft">
+                    {rec.why_it_fits}
+                  </p>
+                  {rec.tags?.length ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {rec.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-accent-50 px-2.5 py-1 text-xs font-medium text-accent-700"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="mt-6 flex items-center justify-between border-t border-ink-line pt-4">
+                    {rec.best_season ? (
+                      <span className="text-sm text-ink-faint">
+                        Best in {rec.best_season}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <span className="text-sm font-medium text-accent-600 transition-transform group-hover:translate-x-0.5">
+                      Plan this trip →
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </Reveal>
+          ))}
+        </div>
+      </Container>
+    </Section>
+  )
+}
