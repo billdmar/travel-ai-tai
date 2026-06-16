@@ -31,17 +31,17 @@ export default function DisclosurePage() {
         <div className="mx-auto max-w-2xl">
           <Reveal>
             <header>
-              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600">
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent-700">
                 Disclosure
               </p>
-              <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-900">
+              <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl">
                 Affiliate disclosure
               </h1>
             </header>
           </Reveal>
 
           <Reveal>
-            <div className="mt-8 space-y-5 leading-relaxed text-slate-600">
+            <div className="mt-8 space-y-5 text-lg leading-relaxed text-ink-soft">
               <p>
                 In accordance with the U.S. Federal Trade Commission’s (FTC) guidelines on
                 endorsements and testimonials, Travel AI wants to be transparent about how we may be
@@ -51,7 +51,7 @@ export default function DisclosurePage() {
                 Some of the links in our itineraries — particularly “Book” links for activities,
                 accommodations, and experiences — are affiliate links. This means that if you click
                 one of these links and make a purchase or booking, we may receive a commission from
-                the provider, <strong className="font-medium text-slate-800">at no additional
+                the provider, <strong className="font-medium text-ink">at no additional
                 cost to you</strong>.
               </p>
               <p>
@@ -71,17 +71,19 @@ export default function DisclosurePage() {
 
           <Reveal>
             <section className="mt-12">
-              <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-500">
+              <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-faint">
                 Frequently asked
               </h2>
-              <dl className="mt-4 space-y-4">
+              <dl className="mt-5 space-y-4">
                 {FAQS.map((faq) => (
                   <div
                     key={faq.q}
-                    className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+                    className="rounded-2xl border border-ink-line bg-canvas-raised p-6 shadow-frame sm:p-7"
                   >
-                    <dt className="font-semibold text-slate-900">{faq.q}</dt>
-                    <dd className="mt-1.5 leading-relaxed text-slate-500">{faq.a}</dd>
+                    <dt className="font-serif text-xl font-medium tracking-tight text-ink">
+                      {faq.q}
+                    </dt>
+                    <dd className="mt-2 leading-relaxed text-ink-soft">{faq.a}</dd>
                   </div>
                 ))}
               </dl>
@@ -89,7 +91,7 @@ export default function DisclosurePage() {
           </Reveal>
 
           <Reveal>
-            <p className="mt-10 text-sm text-slate-400">
+            <p className="mt-10 text-sm text-ink-faint">
               Questions about this disclosure? Reach out through the contact options on our About
               page.
             </p>

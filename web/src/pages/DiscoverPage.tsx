@@ -76,10 +76,10 @@ export default function DiscoverPage() {
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent-700">
             Step 1 of 2
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tightish text-ink">
+          <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl">
             What do you love to do?
           </h1>
-          <p className="mt-4 text-lg leading-relaxed text-ink-soft">
+          <p className="mt-5 text-lg leading-relaxed text-ink-soft">
             Pick a few — or many. The more you tell us, the better the match.
           </p>
         </Reveal>
