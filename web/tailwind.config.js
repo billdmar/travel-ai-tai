@@ -41,12 +41,32 @@ export default {
           'Roboto',
           'sans-serif',
         ],
+        // High-contrast serif for headlines. Cormorant Garamond, falling back
+        // to Playfair Display / Georgia. Body/UI stay on `sans` (Inter).
+        serif: [
+          'Cormorant Garamond Variable',
+          'Cormorant Garamond',
+          'Playfair Display',
+          'Georgia',
+          'serif',
+        ],
       },
       maxWidth: {
         container: '72rem', // 1152px — generous reading/composition width
       },
       letterSpacing: {
         tightish: '-0.011em',
+      },
+      // "Quiet luxury" motion tokens — slow, eased, deliberate; no bounce.
+      // Values are defined as CSS vars in index.css so the whole site shares a
+      // single source of truth. Other terminals reference these, never hardcode.
+      transitionTimingFunction: {
+        lux: 'var(--ease-lux)',
+      },
+      transitionDuration: {
+        reveal: 'var(--dur-reveal)',
+        route: 'var(--dur-route)',
+        hover: 'var(--dur-hover)',
       },
       boxShadow: {
         frame: '0 1px 2px rgba(43,42,40,0.04), 0 12px 32px -12px rgba(43,42,40,0.18)',

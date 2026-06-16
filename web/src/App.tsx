@@ -7,6 +7,7 @@ import {
   Link,
 } from 'react-router-dom'
 import { Container } from './components/ui'
+import PageTransition from './components/PageTransition'
 
 // Lazy routes. Pages owned by Terminal 1 (Home/Discover/Results/TripDetails)
 // and Terminal 2 (Itinerary/Saved/HowItWorks/About/Disclosure). Terminal 2's
@@ -99,17 +100,19 @@ export default function App() {
         <Header />
         <main className="flex-1">
           <Suspense fallback={<RouteFallback />}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/discover" element={<DiscoverPage />} />
-              <Route path="/results" element={<ResultsPage />} />
-              <Route path="/plan/:destination" element={<TripDetailsPage />} />
-              <Route path="/itinerary/:id" element={<ItineraryPage />} />
-              <Route path="/saved" element={<SavedItinerariesPage />} />
-              <Route path="/how-it-works" element={<HowItWorksPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/disclosure" element={<DisclosurePage />} />
-            </Routes>
+            <PageTransition>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/discover" element={<DiscoverPage />} />
+                <Route path="/results" element={<ResultsPage />} />
+                <Route path="/plan/:destination" element={<TripDetailsPage />} />
+                <Route path="/itinerary/:id" element={<ItineraryPage />} />
+                <Route path="/saved" element={<SavedItinerariesPage />} />
+                <Route path="/how-it-works" element={<HowItWorksPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/disclosure" element={<DisclosurePage />} />
+              </Routes>
+            </PageTransition>
           </Suspense>
         </main>
         <Footer />

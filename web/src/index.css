@@ -1,9 +1,21 @@
 /* Inter variable font (self-hosted via fontsource — no external request). */
 @import '@fontsource-variable/inter';
+/* Cormorant Garamond variable — high-contrast serif for headlines. */
+@import '@fontsource-variable/cormorant-garamond';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* "Quiet luxury" motion tokens — single source of truth, mirrored into the
+   Tailwind theme (ease-lux / duration-{reveal,route,hover}). Slow, eased,
+   deliberate; no bounce. The other terminals reference these, never hardcode. */
+:root {
+  --ease-lux: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-reveal: 600ms;
+  --dur-route: 500ms;
+  --dur-hover: 240ms;
+}
 
 html,
 body,
@@ -26,6 +38,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #faf8f4; /* canvas */
   color: #2b2a28; /* ink */
+}
+
+/* Crisp serif rendering. Cormorant Garamond is a high-contrast display serif;
+   let it use its variable optical-size axis and proper ligatures so headlines
+   stay sharp at large sizes. Scoped to .font-serif so this only affects type
+   the pages opt into (Terminal 3 applies font-serif to headlines). */
+.font-serif {
+  font-optical-sizing: auto;
+  font-feature-settings: 'liga' 1, 'dlig' 1, 'kern' 1;
+  text-rendering: optimizeLegibility;
 }
 
 /* Accessible focus ring in the accent color, used app-wide. */
