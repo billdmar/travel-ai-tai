@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import { Container, Section, Reveal } from '../components/ui'
+import { Button, Container, Section, Reveal } from '../components/ui'
 
 interface Step {
   n: string
@@ -32,13 +31,13 @@ export default function HowItWorksPage() {
         <div className="mx-auto max-w-3xl">
           <Reveal>
             <header className="text-center">
-              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-brand-600">
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent-700">
                 How it works
               </p>
-              <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-900">
+              <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl">
                 From hobbies to a finished itinerary
               </h1>
-              <p className="mx-auto mt-3 max-w-xl leading-relaxed text-slate-500">
+              <p className="mx-auto mt-5 max-w-xl text-lg leading-relaxed text-ink-soft">
                 Travel AI turns what you enjoy into a trip you can actually take — in three steps.
               </p>
             </header>
@@ -50,12 +49,16 @@ export default function HowItWorksPage() {
                 key={step.n}
                 as="li"
                 index={i}
-                className="flex gap-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:p-7"
+                className="flex gap-6 rounded-2xl border border-ink-line bg-canvas-raised p-6 shadow-frame sm:p-8"
               >
-                <span className="text-2xl font-semibold tabular-nums text-brand-400">{step.n}</span>
+                <span className="font-serif text-4xl font-medium leading-none tabular-nums text-accent-500">
+                  {step.n}
+                </span>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{step.title}</h2>
-                  <p className="mt-1.5 leading-relaxed text-slate-500">{step.body}</p>
+                  <h2 className="font-serif text-2xl font-medium tracking-tight text-ink">
+                    {step.title}
+                  </h2>
+                  <p className="mt-2 leading-relaxed text-ink-soft">{step.body}</p>
                 </div>
               </Reveal>
             ))}
@@ -63,13 +66,9 @@ export default function HowItWorksPage() {
 
           <Reveal>
             <div className="mt-12 text-center">
-              <Link
-                to="/discover"
-                className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
-              >
-                Start planning
-                <span aria-hidden="true">→</span>
-              </Link>
+              <Button to="/discover" size="lg">
+                Start planning <span aria-hidden="true">→</span>
+              </Button>
             </div>
           </Reveal>
         </div>
