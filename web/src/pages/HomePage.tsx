@@ -1,12 +1,5 @@
-import { Link } from 'react-router-dom'
-import heroImage from '../assets/hero.webp'
-import {
-  Button,
-  Container,
-  ParallaxLayer,
-  Reveal,
-  Section,
-} from '../components/ui'
+import Hero from '../components/Hero'
+import { Button, Container, Reveal, Section } from '../components/ui'
 
 const STEPS = [
   {
@@ -29,62 +22,14 @@ const STEPS = [
 export default function HomePage() {
   return (
     <>
-      {/* Hero — cinematic, framed, with a parallax backdrop. */}
-      <Section as="div" size="spacious" className="relative overflow-hidden">
-        <ParallaxLayer
-          speed={0.35}
-          className="pointer-events-none absolute inset-0 -z-10"
-        >
-          <img
-            src={heroImage}
-            alt=""
-            aria-hidden="true"
-            className="h-[120%] w-full object-cover opacity-90"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-canvas/30 via-canvas/60 to-canvas" />
-        </ParallaxLayer>
-
-        <Container className="relative">
-          <div className="max-w-2xl">
-            <Reveal>
-              <p className="mb-4 text-sm font-medium uppercase tracking-[0.18em] text-accent-700">
-                Travel planning, considered
-              </p>
-            </Reveal>
-            <Reveal index={1}>
-              <h1 className="text-balance text-5xl font-semibold leading-[1.05] tracking-tightish text-ink sm:text-6xl">
-                Trips that begin with what you love.
-              </h1>
-            </Reveal>
-            <Reveal index={2}>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-soft">
-                Travel AI turns your interests into a destination worth the
-                flight — then into an honest, day-by-day plan you can actually
-                follow.
-              </p>
-            </Reveal>
-            <Reveal index={3}>
-              <div className="mt-9 flex flex-wrap items-center gap-4">
-                <Button to="/discover" size="lg">
-                  Start discovering →
-                </Button>
-                <Link
-                  to="/how-it-works"
-                  className="text-sm font-medium text-ink-soft underline-offset-4 hover:text-ink hover:underline"
-                >
-                  How it works
-                </Link>
-              </div>
-            </Reveal>
-          </div>
-        </Container>
-      </Section>
+      {/* Hero — the photo showpiece: Ken Burns cross-fade + masked headline. */}
+      <Hero />
 
       {/* How it works — staggered reveal. */}
       <Section className="bg-canvas-raised">
         <Container>
           <Reveal>
-            <h2 className="max-w-xl text-3xl font-semibold tracking-tightish text-ink sm:text-4xl">
+            <h2 className="max-w-xl font-serif text-3xl font-medium tracking-tightish text-ink sm:text-4xl">
               Three steps, no spreadsheets.
             </h2>
           </Reveal>
@@ -95,7 +40,7 @@ export default function HomePage() {
                   <span className="text-sm font-semibold tracking-[0.2em] text-accent-500">
                     {step.n}
                   </span>
-                  <h3 className="mt-4 text-xl font-semibold tracking-tightish text-ink">
+                  <h3 className="mt-4 font-serif text-xl font-medium tracking-tightish text-ink">
                     {step.title}
                   </h3>
                   <p className="mt-3 leading-relaxed text-ink-soft">{step.body}</p>
@@ -111,7 +56,7 @@ export default function HomePage() {
         <Container>
           <Reveal>
             <div className="overflow-hidden rounded-3xl bg-accent-600 px-8 py-16 text-center shadow-lift sm:px-16">
-              <h2 className="text-balance text-3xl font-semibold tracking-tightish text-white sm:text-4xl">
+              <h2 className="text-balance font-serif text-3xl font-medium tracking-tightish text-white sm:text-4xl">
                 Ready when you are.
               </h2>
               <p className="mx-auto mt-4 max-w-lg text-accent-50/90">

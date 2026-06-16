@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import type { ReactNode } from 'react'
 import { usePrefersReducedMotion } from './usePrefersReducedMotion'
+import { durationSeconds, easeLux } from './motionTokens'
 
 interface RevealProps {
   children: ReactNode
@@ -23,7 +24,7 @@ export function Reveal({
   children,
   className = '',
   index = 0,
-  y = 16,
+  y = 12,
   as = 'div',
 }: RevealProps) {
   const reduced = usePrefersReducedMotion()
@@ -41,9 +42,9 @@ export function Reveal({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: '0px 0px -10% 0px' }}
       transition={{
-        duration: 0.6,
+        duration: durationSeconds('reveal'),
         delay: index * BASE_DELAY,
-        ease: [0.22, 1, 0.36, 1],
+        ease: easeLux(),
       }}
     >
       {children}

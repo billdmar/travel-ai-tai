@@ -4,8 +4,12 @@ import { Link } from 'react-router-dom'
 type Variant = 'primary' | 'secondary' | 'ghost'
 type Size = 'sm' | 'md' | 'lg'
 
+// Gentle "quiet luxury" hover: a 2px lift + soft shadow over the shared
+// --dur-hover / --ease-lux tokens. `motion-safe:` (plus the reduced-motion CSS
+// backstop) means the lift no-ops when motion is reduced; disabled buttons
+// never lift. transition spans color + transform + shadow so all settle as one.
 const BASE =
-  'inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tightish transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2 rounded-full font-medium tracking-tightish transition-[color,background-color,transform,box-shadow] duration-hover ease-lux motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lift disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-none'
 
 const VARIANTS: Record<Variant, string> = {
   primary: 'bg-accent-500 text-white hover:bg-accent-600 active:bg-accent-700',
