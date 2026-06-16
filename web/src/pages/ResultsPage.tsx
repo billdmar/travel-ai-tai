@@ -18,7 +18,7 @@ export default function ResultsPage() {
       <Section>
         <Container narrow>
           <Reveal>
-            <h1 className="text-3xl font-semibold tracking-tightish text-ink">
+            <h1 className="font-serif text-4xl font-medium tracking-tight text-ink sm:text-5xl">
               Let’s start with your interests.
             </h1>
             <p className="mt-4 text-ink-soft">
@@ -49,7 +49,7 @@ export default function ResultsPage() {
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent-700">
             Step 2 of 2
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tightish text-ink">
+          <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl">
             Destinations made for you.
           </h1>
           {hobbies.length > 0 ? (
@@ -72,7 +72,7 @@ export default function ResultsPage() {
               <button
                 type="button"
                 onClick={() => goPlan(rec)}
-                className="group flex h-full w-full flex-col overflow-hidden rounded-3xl border border-ink-line bg-canvas-raised text-left shadow-frame transition-shadow hover:shadow-lift focus-visible:shadow-lift"
+                className="group flex h-full w-full flex-col overflow-hidden rounded-3xl border border-ink-line bg-canvas-raised text-left shadow-frame transition duration-hover ease-lux hover:-translate-y-1 hover:shadow-lift focus-visible:-translate-y-1 focus-visible:shadow-lift"
               >
                 <DestinationImage
                   query={rec.image_query || `${rec.name} ${rec.country}`}
@@ -82,7 +82,7 @@ export default function ResultsPage() {
                 />
                 <div className="flex flex-1 flex-col p-6">
                   <div className="flex items-baseline justify-between gap-3">
-                    <h2 className="text-2xl font-semibold tracking-tightish text-ink">
+                    <h2 className="font-serif text-3xl font-medium leading-tight tracking-tight text-ink">
                       {rec.name}
                     </h2>
                     <span className="shrink-0 text-sm text-ink-faint">
