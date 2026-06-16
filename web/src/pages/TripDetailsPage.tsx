@@ -96,7 +96,7 @@ export default function TripDetailsPage() {
               {state.recommendation.country}
             </p>
           ) : null}
-          <h1 className="mt-3 text-4xl font-semibold tracking-tightish text-ink">
+          <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl">
             Your trip to {destination || 'somewhere wonderful'}
           </h1>
           {interests.length > 0 ? (

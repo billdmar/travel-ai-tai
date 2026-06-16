@@ -1,0 +1,193 @@
+import { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
+import { HERO_SLIDES, type HeroSlide } from '../assets/hero'
+import { Button, Container, Reveal, usePrefersReducedMotion } from './ui'
+
+// "Quiet luxury" motion: slow, eased, no bounce. The cubic-bezier mirrors the
+// --ease-lux token (index.css); framer needs the array form, not the CSS var.
+const EASE_LUX = [0.22, 1, 0.36, 1] as const
+const SLIDE_MS = 9000 // time each slide is held before advancing
+const FADE_S = 1.5 // cross-fade length
+const ZOOM_MAX = 1.1 // modest — sources are ~1920px, keep them crisp
+const PAN_PX = 26 // gentle Ken Burns drift
+
+// Pan bias: the subject side drifts toward center as the frame zooms.
+const PAN: Record<NonNullable<HeroSlide['focus']>, number> = {
+  left: PAN_PX,
+  center: 0,
+  right: -PAN_PX,
+}
+
+interface KenBurnsImageProps {
+  slide: HeroSlide
+  active: boolean
+  reduced: boolean
+  /** When set, the image is clipped to the subject and layered over the text. */
+  clip?: string
+}
+
+/**
+ * One full-bleed photo layer. Cross-fades on `active` and, while active, slowly
+ * zooms + pans (Ken Burns). The masked over-text copy reuses this with the same
+ * `active` and motion params so it stays pixel-aligned with the background.
+ */
+function KenBurnsImage({ slide, active, reduced, clip }: KenBurnsImageProps) {
+  const pan = PAN[slide.focus ?? 'center']
+  const clipStyle = clip ? { clipPath: clip, WebkitClipPath: clip } : undefined
+
+  if (reduced) {
+    // Still frame — no fade, no zoom. Only the first slide is rendered.
+    return (
+      <img
+        src={slide.src}
+        alt={clip ? '' : slide.alt}
+        aria-hidden={clip ? true : undefined}
+        className="absolute inset-0 h-full w-full object-cover"
+        style={clipStyle}
+      />
+    )
+  }
+
+  return (
+    <motion.img
+      src={slide.src}
+      alt={clip ? '' : slide.alt}
+      aria-hidden={clip ? true : undefined}
+      className="absolute inset-0 h-full w-full object-cover will-change-transform"
+      style={clipStyle}
+      initial={false}
+      animate={
+        active
+          ? { opacity: 1, scale: ZOOM_MAX, x: pan }
+          : { opacity: 0, scale: 1, x: 0 }
+      }
+      transition={{
+        opacity: { duration: FADE_S, ease: EASE_LUX },
+        // Steady, continuous zoom across the whole hold; the reset (inactive)
+        // happens at opacity 0, so it's never seen.
+        scale: { duration: SLIDE_MS / 1000, ease: 'linear' },
+        x: { duration: SLIDE_MS / 1000, ease: 'linear' },
+      }}
+    />
+  )
+}
+
+/**
+ * The hero showpiece: a full-bleed Ken Burns cross-fade slideshow behind a
+ * near-white serif headline. Slides with a strong vertical subject render a
+ * second, clipped copy layered ABOVE the headline (lg+ only) so the peak /
+ * spire / tower appears to rise in front of the type. A dark→transparent
+ * scrim keeps every glyph crisp; under reduced-motion it's a single still.
+ */
+export default function Hero() {
+  const reduced = usePrefersReducedMotion()
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    if (reduced) return
+    const id = window.setInterval(
+      () => setIndex((i) => (i + 1) % HERO_SLIDES.length),
+      SLIDE_MS,
+    )
+    return () => window.clearInterval(id)
+  }, [reduced])
+
+  // Reduced motion shows only the first slide; everything else stacks live.
+  const slides = reduced ? HERO_SLIDES.slice(0, 1) : HERO_SLIDES
+  const current = slides[reduced ? 0 : index]
+
+  return (
+    <section className="relative flex min-h-[88vh] max-h-[940px] items-center overflow-hidden bg-ink">
+      {/* Photo layers — all mounted so the browser preloads them; fades never flash. */}
+      <div className="absolute inset-0">
+        {slides.map((slide, i) => (
+          <KenBurnsImage
+            key={slide.src}
+            slide={slide}
+            active={reduced || i === index}
+            reduced={reduced}
+          />
+        ))}
+      </div>
+
+      {/* Scrim. Two layers keep the left-aligned headline crisp on EVERY photo,
+          even pale skies (Taj) and tall mobile crops, without dimming the
+          masked subjects — those render above this, at z-30.
+          • left→right: anchors darkness under the text, clears the right side
+            where the peak / tower rises.
+          • bottom→up: seats the hero and fades into the warm canvas below. */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink/80 via-ink/45 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-canvas via-ink/20 to-transparent" />
+      {/* Mobile floor: no masked subject exists below lg, and the text spans the
+          full width, so an even wash lifts contrast over bright mid-frames
+          (e.g. the snow behind the subhead) without dimming any subject. */}
+      <div className="pointer-events-none absolute inset-0 bg-ink/30 lg:hidden" />
+
+      {/* Headline + CTAs. */}
+      <Container className="relative z-20">
+        <div className="max-w-2xl">
+          <Reveal>
+            <p className="mb-5 text-sm font-medium uppercase tracking-[0.2em] text-white/70">
+              Travel planning, considered
+            </p>
+          </Reveal>
+          <Reveal index={1}>
+            <h1 className="text-balance font-serif text-5xl font-medium leading-[1.02] tracking-tightish text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.45)] sm:text-7xl">
+              Trips that begin with what you love.
+            </h1>
+          </Reveal>
+          <Reveal index={2}>
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/85 drop-shadow-[0_1px_12px_rgba(0,0,0,0.5)]">
+              Travel AI turns your interests into a destination worth the flight
+              — then into an honest, day-by-day plan you can actually follow.
+            </p>
+          </Reveal>
+          <Reveal index={3}>
+            <div className="mt-9 flex flex-wrap items-center gap-5">
+              <Button to="/discover" size="lg">
+                Start discovering →
+              </Button>
+              <Link
+                to="/how-it-works"
+                className="text-sm font-medium text-white/80 underline-offset-4 transition-colors duration-hover hover:text-white hover:underline"
+              >
+                How it works
+              </Link>
+            </div>
+          </Reveal>
+        </div>
+      </Container>
+
+      {/* Signature effect: a clipped copy of the subject, layered OVER the text
+          so the peak / spire / tower rises in front of the headline. Desktop
+          (lg+) only — the clip-paths are tuned to the wide object-cover crop;
+          on narrow screens the crop shifts, so we fall back to scrim-only. */}
+      {!reduced && (
+        <div
+          className="pointer-events-none absolute inset-0 z-30 hidden lg:block"
+          aria-hidden="true"
+        >
+          {slides.map((slide, i) =>
+            slide.subjectMask ? (
+              <KenBurnsImage
+                key={`mask-${slide.src}`}
+                slide={slide}
+                active={i === index}
+                reduced={false}
+                clip={slide.subjectMask}
+              />
+            ) : null,
+          )}
+        </div>
+      )}
+
+      {/* Current-location credit, lower-right — quiet, optional. */}
+      {current?.credit && (
+        <span className="pointer-events-none absolute bottom-5 right-6 z-20 text-xs font-medium tracking-wide text-white/55">
+          {current.credit}
+        </span>
+      )}
+    </section>
+  )
+}
