@@ -1,26 +1,76 @@
-"""Itinerary export router (FOUNDATION stub).
+"""Itinerary export router (BE-EXPORT).
 
-Frozen endpoint: GET /api/v1/itineraries/{id}/export?format=markdown|pdf
-BE-EXPORT fills the handler with real file-download rendering. Until then it
-returns 501 so the app boots and the contract is reserved.
+Frozen endpoint:
+    GET /api/v1/itineraries/{id}/export?format=markdown|pdf
+
+Streams the itinerary back as a file download (correct ``Content-Type`` and a
+``Content-Disposition: attachment`` filename). 404 when the itinerary is missing
+or soft-deleted; 422 for an unsupported ``format``; 503 if PDF is requested but
+the optional ``fpdf2`` library is not installed in this deployment.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Literal
+from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from api.db import ItineraryRecord, get_session
+from api.export import PDFExportUnavailable, render_markdown, render_pdf
+from api.recommend import record_to_response
 
 router = APIRouter(prefix="/api/v1", tags=["export"])
+
+_SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _slug(destination: str) -> str:
+    """Filesystem-safe slug for the download filename (``Tokyo, Japan`` -> ``tokyo-japan``)."""
+    slug = _SLUG_RE.sub("-", destination.lower()).strip("-")
+    return slug or "itinerary"
 
 
 @router.get("/itineraries/{itinerary_id}/export")
 async def export_itinerary(
-    itinerary_id: str,
+    itinerary_id: UUID,
     format: Literal["markdown", "pdf"] = "markdown",
-) -> None:
-    """Stub: BE-EXPORT returns a file download here."""
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="export not implemented yet",
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    """Download an itinerary as Markdown or PDF.
+
+    The ``format`` query param is validated by FastAPI against the ``Literal``,
+    so any other value yields a 422 before this handler runs.
+    """
+    record = await session.get(ItineraryRecord, str(itinerary_id))
+    if record is None or record.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "itinerary_not_found"},
+        )
+
+    itinerary = record_to_response(record)
+    stem = f"{_slug(itinerary.preferences.destination)}-itinerary"
+
+    if format == "markdown":
+        body = render_markdown(itinerary).encode("utf-8")
+        media_type = "text/markdown; charset=utf-8"
+        filename = f"{stem}.md"
+    else:  # "pdf" — the Literal guarantees no other value reaches here.
+        try:
+            body = render_pdf(itinerary)
+        except PDFExportUnavailable as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={"error": "pdf_export_unavailable"},
+            ) from exc
+        media_type = "application/pdf"
+        filename = f"{stem}.pdf"
+
+    return Response(
+        content=body,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
