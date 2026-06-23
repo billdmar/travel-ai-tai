@@ -59,6 +59,7 @@ class OpenAILLMProvider(LLMProvider):
                 model=self._model,
                 response_format={"type": "json_object"},
                 max_tokens=max_tokens,
+                timeout=self._settings.llm_timeout_seconds,
                 messages=[
                     {"role": "system", "content": system},
                     {"role": "user", "content": user},
