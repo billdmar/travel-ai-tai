@@ -5,7 +5,15 @@ import type {
   PlanLocationState,
   ResultsLocationState,
 } from '../types/discovery'
-import { Button, Container, Reveal, Section } from '../components/ui'
+import {
+  Button,
+  Container,
+  Reveal,
+  ScrollScale,
+  Section,
+  softGlow,
+  variableSerif,
+} from '../components/ui'
 
 export default function ResultsPage() {
   const navigate = useNavigate()
@@ -43,13 +51,21 @@ export default function ResultsPage() {
   }
 
   return (
-    <Section size="cozy">
+    <Section size="cozy" className="relative isolate overflow-hidden">
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10"
+        style={softGlow('top-right')}
+      />
       <Container>
         <Reveal>
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent-700">
             Step 2 of 2
           </p>
-          <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl">
+          <h1
+            className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl"
+            style={variableSerif(560)}
+          >
             Destinations made for you.
           </h1>
           {hobbies.length > 0 ? (
@@ -69,6 +85,7 @@ export default function ResultsPage() {
         <div className="mt-12 grid gap-8 sm:grid-cols-2">
           {recommendations.map((rec, i) => (
             <Reveal key={`${rec.name}-${rec.country}`} index={i} as="article">
+              <ScrollScale amount={0.04} className="h-full">
               <button
                 type="button"
                 onClick={() => goPlan(rec)}
@@ -118,6 +135,7 @@ export default function ResultsPage() {
                   </div>
                 </div>
               </button>
+              </ScrollScale>
             </Reveal>
           ))}
         </div>
