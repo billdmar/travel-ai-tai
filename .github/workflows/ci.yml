@@ -22,7 +22,7 @@ jobs:
       - name: Type-check (scoped, non-blocking)
         run: mypy api/models.py api/llm/ || true
       - name: Tests (mock provider — no API key needed)
-        run: pytest -q
+        run: pytest -q --cov=api --cov-report=term-missing --cov-report=xml
         env:
           LLM_PROVIDER: mock
 
@@ -38,3 +38,5 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: cd web && npm ci
       - run: cd web && npm run build
+      - name: Unit tests (vitest)
+        run: cd web && npm run test
