@@ -8,6 +8,7 @@ import {
 } from 'react-router-dom'
 import { Container } from './components/ui'
 import PageTransition from './components/PageTransition'
+import RouteTitles from './seo/RouteTitles'
 
 // Lazy routes. Pages owned by Terminal 1 (Home/Discover/Results/TripDetails)
 // and Terminal 2 (Itinerary/Saved/HowItWorks/About/Disclosure). Terminal 2's
@@ -21,6 +22,10 @@ const SavedItinerariesPage = lazy(() => import('./pages/SavedItinerariesPage'))
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const DisclosurePage = lazy(() => import('./pages/DisclosurePage'))
+// New surfaces (FOUNDATION wires the routes; owners fill the pages).
+const ExplorePage = lazy(() => import('./pages/ExplorePage'))
+const DestinationLandingPage = lazy(() => import('./pages/DestinationLandingPage'))
+const SharePage = lazy(() => import('./pages/SharePage'))
 
 const NAV = [
   { to: '/discover', label: 'Discover' },
@@ -96,6 +101,7 @@ function RouteFallback() {
 export default function App() {
   return (
     <BrowserRouter>
+      <RouteTitles />
       <div className="flex min-h-screen flex-col bg-canvas text-ink">
         <Header />
         <main className="flex-1">
@@ -108,6 +114,9 @@ export default function App() {
                 <Route path="/plan/:destination" element={<TripDetailsPage />} />
                 <Route path="/itinerary/:id" element={<ItineraryPage />} />
                 <Route path="/saved" element={<SavedItinerariesPage />} />
+                <Route path="/explore" element={<ExplorePage />} />
+                <Route path="/destination/:slug" element={<DestinationLandingPage />} />
+                <Route path="/share/:token" element={<SharePage />} />
                 <Route path="/how-it-works" element={<HowItWorksPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/disclosure" element={<DisclosurePage />} />

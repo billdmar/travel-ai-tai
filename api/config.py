@@ -42,6 +42,17 @@ class Settings(BaseSettings):
     gemini_fallback_to_mock: bool = Field(
         default=True, alias="GEMINI_FALLBACK_TO_MOCK"
     )
+    # Upper bound (seconds) for a single LLM generation call before it is
+    # treated as a failure. BE-HARDEN / providers enforce this.
+    llm_timeout_seconds: float = Field(
+        default=30.0, alias="LLM_TIMEOUT_SECONDS", gt=0
+    )
+
+    # ── Outbound HTTP ───────────────────────────────────────────────────────
+    # Timeout (seconds) for outbound HTTP calls (e.g. the Unsplash image proxy).
+    http_timeout_seconds: float = Field(
+        default=10.0, alias="HTTP_TIMEOUT_SECONDS", gt=0
+    )
 
     # ── Images (Unsplash proxy) ─────────────────────────────────────────────
     unsplash_access_key: str | None = Field(
@@ -57,9 +68,18 @@ class Settings(BaseSettings):
     affiliate_tag_flights: str = Field(default="", alias="AFFILIATE_TAG_FLIGHTS")
 
     # ── Persistence ─────────────────────────────────────────────────────────
+    # In prod set DATABASE_URL to a postgres DSN
+    # (postgresql+asyncpg://user:pass@host:5432/tai); when unset we fall back to
+    # an ephemeral local SQLite file. ``is_postgres`` lets callers branch on the
+    # selected backend without re-parsing the URL.
     database_url: str = Field(
         default="sqlite+aiosqlite:///./tai.db", alias="DATABASE_URL"
     )
+
+    @property
+    def is_postgres(self) -> bool:
+        """True when DATABASE_URL points at Postgres rather than SQLite."""
+        return self.database_url.startswith("postgres")
 
     # ── Caching ─────────────────────────────────────────────────────────────
     cache_backend: Literal["memory", "redis"] = Field(
