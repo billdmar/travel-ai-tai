@@ -3,7 +3,15 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ApiError, createItinerary } from '../api/client'
 import type { PlanLocationState } from '../types/discovery'
 import type { Pace, TravelPreferences, TravelStyle } from '../types/itinerary'
-import { Button, Container, Reveal, Section } from '../components/ui'
+import {
+  Button,
+  Container,
+  Reveal,
+  ScrollScale,
+  Section,
+  softGlow,
+  variableSerif,
+} from '../components/ui'
 
 const PACES: { value: Pace; label: string }[] = [
   { value: 'relaxed', label: 'Relaxed' },
@@ -88,7 +96,12 @@ export default function TripDetailsPage() {
   }
 
   return (
-    <Section size="cozy">
+    <Section size="cozy" className="relative isolate overflow-hidden">
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10"
+        style={softGlow('top-left')}
+      />
       <Container narrow>
         <Reveal>
           {state?.recommendation ? (
@@ -96,7 +109,10 @@ export default function TripDetailsPage() {
               {state.recommendation.country}
             </p>
           ) : null}
-          <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl">
+          <h1
+            className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl"
+            style={variableSerif(560)}
+          >
             Your trip to {destination || 'somewhere wonderful'}
           </h1>
           {interests.length > 0 ? (
@@ -108,6 +124,7 @@ export default function TripDetailsPage() {
         </Reveal>
 
         <Reveal index={1}>
+          <ScrollScale amount={0.03}>
           <div className="mt-10 space-y-8 rounded-3xl border border-ink-line bg-canvas-raised p-7 shadow-frame">
             {/* Dates */}
             <div className="grid gap-5 sm:grid-cols-2">
@@ -191,6 +208,7 @@ export default function TripDetailsPage() {
               />
             </Field>
           </div>
+          </ScrollScale>
         </Reveal>
 
         {error ? (
