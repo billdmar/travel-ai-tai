@@ -22,3 +22,9 @@ google-generativeai>=0.8,<0.9
 
 # Optional cache backend (graceful fallback to in-memory if unreachable).
 redis>=5.0,<6
+
+# PDF itinerary export — pure-Python (no native/system deps), ships universal
+# wheels, so it is prod-safe on the slim image. Imported lazily in
+# api/export.py; if absent, PDF export degrades to a clean 503 (mirrors the
+# Gemini-SDK lazy-import split) while Markdown export keeps working.
+fpdf2>=2.7,<3
