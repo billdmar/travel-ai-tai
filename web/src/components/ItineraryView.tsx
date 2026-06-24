@@ -4,7 +4,11 @@ import type { ItineraryResponse } from '../types/itinerary'
 import { saveItinerary } from '../api/client'
 import { money } from '../lib/format'
 import { Reveal } from '../components/ui'
+import { DestinationImage } from './DestinationImage'
 import DayCard from './DayCard'
+import CostBreakdown from './CostBreakdown'
+import PackingChecklist from './PackingChecklist'
+import ExportShareButton from './ExportShareButton'
 import ErrorBanner from './ErrorBanner'
 
 interface ItineraryViewProps {
@@ -12,11 +16,21 @@ interface ItineraryViewProps {
   onReset?: () => void
   /** Switches the app to the Saved page (toast deep link). */
   onViewSaved?: () => void
+  /**
+   * Public, read-only mode (the /share/:token page): hides all owner controls
+   * — Save, Export and Share — so a shared itinerary cannot be mutated.
+   */
+  readOnly?: boolean
 }
 
 type SaveState = 'idle' | 'saving' | 'saved'
 
-export default function ItineraryView({ itinerary, onReset, onViewSaved }: ItineraryViewProps) {
+export default function ItineraryView({
+  itinerary,
+  onReset,
+  onViewSaved,
+  readOnly = false,
+}: ItineraryViewProps) {
   const { id, preferences, days, total_estimated_cost_usd, currency, summary, tips, provider } =
     itinerary
 
@@ -58,6 +72,16 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
         <ErrorBanner error={saveError} onDismiss={() => setSaveError(null)} onRetry={handleSave} />
       )}
 
+      {/* Editorial cover photo — sets the travel-magazine tone */}
+      <Reveal>
+        <DestinationImage
+          query={preferences.destination}
+          alt={`${preferences.destination} cover photo`}
+          aspect="aspect-[16/7]"
+          eager
+        />
+      </Reveal>
+
       {/* Summary / hero card — warm charcoal, the cover of the travel document */}
       <Reveal>
         <div className="overflow-hidden rounded-3xl border border-ink bg-ink p-7 text-canvas shadow-frame sm:p-9">
@@ -75,7 +99,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
               </p>
             </div>
             <div className="flex flex-col items-end gap-3">
-              {saveState === 'idle' && (
+              {!readOnly && saveState === 'idle' && (
                 <button
                   type="button"
                   onClick={handleSave}
@@ -98,7 +122,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
                   Save itinerary
                 </button>
               )}
-              {saveState === 'saving' && (
+              {!readOnly && saveState === 'saving' && (
                 <button
                   type="button"
                   disabled
@@ -128,7 +152,7 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
                   Saving…
                 </button>
               )}
-              {saveState === 'saved' && (
+              {!readOnly && saveState === 'saved' && (
                 <span
                   aria-label="Itinerary saved"
                   className="inline-flex cursor-default items-center gap-2 rounded-full bg-accent-500/15 px-5 py-2 text-sm font-medium text-accent-200 ring-1 ring-accent-400/30"
@@ -204,14 +228,36 @@ export default function ItineraryView({ itinerary, onReset, onViewSaved }: Itine
         </p>
       </div>
 
+      {/* Export / share controls — owner only */}
+      {!readOnly && (
+        <Reveal>
+          <ExportShareButton itineraryId={id} />
+        </Reveal>
+      )}
+
+      {/* Budget breakdown + trip summary */}
+      <Reveal>
+        <CostBreakdown itinerary={itinerary} />
+      </Reveal>
+
       {/* Day cards */}
       <div className="space-y-4">
         {days.map((day, i) => (
           <Reveal key={day.day_number} index={i}>
-            <DayCard day={day} grandTotal={grandTotal} defaultOpen={i === 0} />
+            <DayCard
+              day={day}
+              grandTotal={grandTotal}
+              defaultOpen={i === 0}
+              destination={preferences.destination}
+            />
           </Reveal>
         ))}
       </div>
+
+      {/* Packing checklist */}
+      <Reveal>
+        <PackingChecklist itinerary={itinerary} />
+      </Reveal>
 
       {/* Tips */}
       {tips.length > 0 && (

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#faf8f4"/>
+      <stop offset="1" stop-color="#f1eee7"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="10" fill="#3f7a72"/>
+  <g transform="translate(96, 150)">
+    <g transform="translate(0, 0)">
+      <rect width="64" height="64" rx="14" fill="#3f7a72"/>
+      <path d="M32 14 L36.2 27.8 L50 32 L36.2 36.2 L32 50 L27.8 36.2 L14 32 L27.8 27.8 Z" fill="#faf8f4"/>
+    </g>
+    <text x="84" y="46" font-family="Inter, system-ui, sans-serif" font-size="30" font-weight="600" fill="#2b2a28">Travel AI <tspan fill="#8a857d">(TAI)</tspan></text>
+  </g>
+  <text x="96" y="340" font-family="Georgia, 'Cormorant Garamond', serif" font-size="84" font-weight="500" fill="#2b2a28">Personalized travel,</text>
+  <text x="96" y="436" font-family="Georgia, 'Cormorant Garamond', serif" font-size="84" font-weight="500" fill="#3f7a72">planned in minutes.</text>
+  <text x="96" y="516" font-family="Inter, system-ui, sans-serif" font-size="30" fill="#55524d">Interests in. A destination worth the flight, and a day-by-day itinerary, out.</text>
+</svg>

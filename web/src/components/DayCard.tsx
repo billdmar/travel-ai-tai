@@ -1,12 +1,46 @@
 import { useState } from 'react'
 import type { Activity, ActivityCategory, ItineraryDay } from '../types/itinerary'
 import { money } from '../lib/format'
+import { DestinationImage } from './DestinationImage'
 
 interface DayCardProps {
   day: ItineraryDay
   /** Grand total across all days, for the per-day cost bar. */
   grandTotal?: number
   defaultOpen?: boolean
+  /** Destination name, used to scope per-activity photo queries. */
+  destination?: string
+}
+
+// Activities worth a photo — places you'd actually picture (skip transit, etc).
+const THUMBNAIL_CATEGORIES: ReadonlySet<ActivityCategory> = new Set<ActivityCategory>([
+  'attraction',
+  'leisure',
+  'food',
+  'accommodation',
+])
+
+/** Small, lazy photo for a place; only for visual categories to limit fetches. */
+function ActivityThumb({
+  activity,
+  destination,
+  className = '',
+}: {
+  activity: Activity
+  destination?: string
+  className?: string
+}) {
+  if (!THUMBNAIL_CATEGORIES.has(activity.category)) return null
+  const query = destination ? `${activity.place} ${destination}` : activity.place
+  return (
+    <DestinationImage
+      query={query}
+      alt={activity.place}
+      aspect="aspect-[4/3]"
+      showCredit={false}
+      className={className}
+    />
+  )
 }
 
 // Unified, restrained palette: a single neutral chip per category, distinguished
@@ -96,7 +130,12 @@ function BookLink({ activity }: { activity: Activity }) {
   )
 }
 
-export default function DayCard({ day, grandTotal, defaultOpen = false }: DayCardProps) {
+export default function DayCard({
+  day,
+  grandTotal,
+  defaultOpen = false,
+  destination,
+}: DayCardProps) {
   const [open, setOpen] = useState(defaultOpen)
 
   const dayTotal = day.activities.reduce((sum, a) => sum + a.estimated_cost_usd, 0)
@@ -159,7 +198,12 @@ export default function DayCard({ day, grandTotal, defaultOpen = false }: DayCar
                     {money(a.estimated_cost_usd)}
                   </span>
                 </div>
-                <p className="mt-1 font-medium text-ink">{a.place}</p>
+                <ActivityThumb
+                  activity={a}
+                  destination={destination}
+                  className="mt-2"
+                />
+                <p className="mt-2 font-medium text-ink">{a.place}</p>
                 <p className="text-xs leading-relaxed text-ink-soft">{a.description}</p>
                 <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
                   <CategoryChip category={a.category} />
@@ -199,8 +243,17 @@ export default function DayCard({ day, grandTotal, defaultOpen = false }: DayCar
                       {a.time}
                     </td>
                     <td className="px-3 py-3.5">
-                      <p className="font-medium text-ink">{a.place}</p>
-                      <p className="text-xs leading-relaxed text-ink-soft">{a.description}</p>
+                      <div className="flex gap-3">
+                        <ActivityThumb
+                          activity={a}
+                          destination={destination}
+                          className="w-20 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <p className="font-medium text-ink">{a.place}</p>
+                          <p className="text-xs leading-relaxed text-ink-soft">{a.description}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-3 py-3.5">
                       <CategoryChip category={a.category} />

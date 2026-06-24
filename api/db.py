@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import AsyncIterator
 
 from fastapi import Request
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -49,6 +49,24 @@ class ItineraryRecord(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+
+class ShareTokenRecord(Base):
+    """Opaque share token → itinerary mapping for public read-only links.
+
+    A token is minted on demand for an itinerary and persisted in the same DB,
+    so it survives a restart exactly like the itinerary it points at. The
+    public ``GET /shared/{token}`` route resolves a token to its itinerary and
+    returns a read-only response.
+    """
+
+    __tablename__ = "share_tokens"
+
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+    itinerary_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("itinerary_records.id"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 def build_engine(database_url: str) -> AsyncEngine:
