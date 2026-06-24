@@ -16,17 +16,27 @@ Provides:
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import os
 
-import pytest
-from asgi_lifespan import LifespanManager
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+# Force the mock provider before importing ``api.main`` (which builds a
+# module-level ``app = create_app()`` at import time). Without this, a developer
+# ``.env`` selecting ``LLM_PROVIDER=gemini`` would eagerly instantiate the
+# Gemini provider and pull in the EOL ``google-generativeai`` SDK, whose
+# import-time ``FutureWarning`` is promoted to an error by ``filterwarnings=error``.
+# Tests must be hermetic and network-free regardless of local env.
+os.environ.setdefault("LLM_PROVIDER", "mock")
 
-from api.config import Settings
-from api.db import Base, get_session
-from api.main import create_app
+from collections.abc import AsyncIterator  # noqa: E402
+
+import pytest  # noqa: E402
+from asgi_lifespan import LifespanManager  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+
+from api.config import Settings  # noqa: E402
+from api.db import Base, get_session  # noqa: E402
+from api.main import create_app  # noqa: E402
 
 
 @pytest.fixture
