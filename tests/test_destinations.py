@@ -16,7 +16,7 @@ from httpx import ASGITransport, AsyncClient
 
 from api.config import Settings
 from api.llm.mock_provider import MockLLMProvider, build_mock_destinations
-from api.llm.provider import LLMProvider
+from api.llm.provider import LLMProvider, LLMResult
 from api.models import DestinationRecommendationResponse
 from api.routes.destinations import provider_dependency
 from api.routes.destinations import router as destinations_router
@@ -69,12 +69,12 @@ async def test_mock_complete_serves_discovery() -> None:
     from api.models import HobbyRecommendationRequest
 
     provider = MockLLMProvider()
-    raw = await provider.complete(
+    result = await provider.complete(
         system=build_system_prompt(),
         user=build_user_prompt(HobbyRecommendationRequest(hobbies=["hiking"])),
         max_tokens=2000,
     )
-    parsed = DestinationRecommendationResponse.model_validate_json(raw)
+    parsed = DestinationRecommendationResponse.model_validate_json(result.text)
     assert 4 <= len(parsed.recommendations) <= 6
 
 
@@ -109,16 +109,16 @@ async def test_recommend_empty_hobbies_still_succeeds() -> None:
 class _MalformedProvider(LLMProvider):
     name = "openai"
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
-        return '{"bogus": true}'
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
+        return LLMResult('{"bogus": true}')
 
 
 class _TooFewProvider(LLMProvider):
     name = "openai"
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
         # Schema-valid JSON but only 2 destinations — must fail the 4-6 check.
-        return (
+        return LLMResult(
             '{"recommendations": ['
             '{"name": "A", "country": "X", "why_it_fits": "w", '
             '"tags": ["t"], "image_query": "q", "best_season": "s"},'

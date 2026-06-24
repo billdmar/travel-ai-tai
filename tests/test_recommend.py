@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from api.cache import ItineraryCache
 from api.db import ItineraryRecord
 from api.llm.mock_provider import MockLLMProvider
-from api.llm.provider import LLMProvider
+from api.llm.provider import LLMProvider, LLMResult
 from api.models import TravelPreferences
 from api.recommend import (
     ItineraryParseError,
@@ -90,15 +90,15 @@ async def test_different_prefs_different_id(test_settings, sessionmaker) -> None
 class _UnavailableProvider(LLMProvider):
     name = "openai"
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
         raise LLMUnavailableError("provider down")
 
 
 class _MalformedProvider(LLMProvider):
     name = "openai"
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
-        return '{"not": "an itinerary"}'
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
+        return LLMResult('{"not": "an itinerary"}')
 
 
 async def test_unavailable_provider_propagates(test_settings, sessionmaker) -> None:
@@ -121,3 +121,39 @@ async def test_malformed_output_raises_parse_error(test_settings, sessionmaker) 
     async with sessionmaker() as session:
         with pytest.raises(ItineraryParseError):
             await engine.generate(_prefs(), session)
+
+
+class _TokenReportingProvider(LLMProvider):
+    """A non-mock provider that returns a valid itinerary plus usage metadata."""
+
+    name = "openai"
+
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
+        # Reuse the mock itinerary JSON so the schema validates, but report
+        # real token usage the way a live provider would.
+        import json
+
+        from api.llm.mock_provider import build_mock_itinerary
+
+        return LLMResult(json.dumps(build_mock_itinerary()), tokens_used=1234)
+
+
+async def test_real_provider_tokens_persisted_and_returned(
+    test_settings, sessionmaker
+) -> None:
+    # A non-mock provider that reports usage must NOT yield tokens_used=None:
+    # the engine trusts the provider value and persists + returns it.
+    engine = RecommendationEngine(
+        settings=test_settings,
+        provider=_TokenReportingProvider(),
+        cache=ItineraryCache(test_settings),
+    )
+    async with sessionmaker() as session:
+        response = await engine.generate(_prefs(), session)
+
+    assert response.tokens_used == 1234
+
+    async with sessionmaker() as session:
+        record = await session.get(ItineraryRecord, str(response.id))
+    assert record is not None
+    assert record.tokens_used == 1234

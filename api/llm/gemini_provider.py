@@ -23,7 +23,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from api.llm.provider import TOKEN_COUNTER, LLMProvider
+from api.llm.provider import TOKEN_COUNTER, LLMProvider, LLMResult
 from api.recommend import LLMUnavailableError
 
 if TYPE_CHECKING:
@@ -69,8 +69,8 @@ class GeminiLLMProvider(LLMProvider):
             },
         )
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
-        """Generate an itinerary JSON string, retrying transient failures."""
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
+        """Generate an itinerary completion, retrying transient failures."""
         transient = _transient_exception_types()
 
         @retry(
@@ -79,7 +79,7 @@ class GeminiLLMProvider(LLMProvider):
             wait=wait_exponential(multiplier=1, min=1, max=10),
             reraise=True,
         )
-        async def _call() -> str:
+        async def _call() -> LLMResult:
             resp = await self._model.generate_content_async(
                 f"{system}\n\n{user}",
                 request_options={"timeout": self._settings.llm_timeout_seconds},
@@ -91,13 +91,17 @@ class GeminiLLMProvider(LLMProvider):
                 logger.info(
                     "tokens_used=%d model=%s", total_tokens, self._model_name
                 )
-            return resp.text or ""
+            return LLMResult(resp.text or "", tokens_used=total_tokens)
 
         try:
             return await _call()
         except transient as exc:
             if self._settings.gemini_fallback_to_mock:
-                logger.warning(
+                # ERROR (not WARNING) so the silent degrade is visible in logs
+                # and picked up by Sentry; the fallback_reason propagates the
+                # cause upstream (response model / response header) too.
+                reason = f"gemini_unavailable: {exc}"
+                logger.error(
                     "Gemini unavailable after retries (%s); serving mock fallback",
                     exc,
                 )
@@ -105,6 +109,7 @@ class GeminiLLMProvider(LLMProvider):
                 # prompt, so this covers both flows with a single delegation.
                 from api.llm.mock_provider import MockLLMProvider
 
-                return await MockLLMProvider().complete(system, user, max_tokens)
-            logger.warning("Gemini unavailable after retries: %s", exc)
+                fallback = await MockLLMProvider().complete(system, user, max_tokens)
+                return LLMResult(fallback.text, fallback_reason=reason)
+            logger.error("Gemini unavailable after retries: %s", exc)
             raise LLMUnavailableError(str(exc)) from exc

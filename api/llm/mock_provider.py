@@ -18,6 +18,8 @@ import json
 import re
 from datetime import date, timedelta
 
+from api.llm.provider import LLMProvider, LLMResult
+
 
 def _osm(place: str) -> str:
     return f"https://www.openstreetmap.org/search?query={place.replace(' ', '+')}"
@@ -283,25 +285,28 @@ def _is_discovery_prompt(system: str) -> bool:
     return '"recommendations"' in system
 
 
-class MockLLMProvider:
+class MockLLMProvider(LLMProvider):
     """Mock provider implementing the ``LLMProvider`` interface."""
 
     name = "mock"
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
-        """Return a schema-valid JSON string for the requested flow.
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
+        """Return a schema-valid completion for the requested flow.
 
         Serves discovery (``DestinationRecommendationResponse``) when the system
         prompt is the discovery prompt, otherwise an itinerary
         (``GeneratedItinerary``). The user's hobbies are parsed from the
         discovery user prompt so the picks adapt to the request. Signature
-        matches the real provider for drop-in swapping.
+        matches the real provider for drop-in swapping; ``tokens_used`` stays
+        ``None`` since no model is called.
         """
         if _is_discovery_prompt(system):
-            return json.dumps(build_mock_destinations(_parse_hobbies(user)))
+            return LLMResult(json.dumps(build_mock_destinations(_parse_hobbies(user))))
         destination, num_days = _parse_itinerary_request(user)
-        return json.dumps(
-            build_mock_itinerary(destination=destination, num_days=num_days)
+        return LLMResult(
+            json.dumps(
+                build_mock_itinerary(destination=destination, num_days=num_days)
+            )
         )
 
 

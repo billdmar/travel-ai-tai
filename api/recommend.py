@@ -136,11 +136,12 @@ class RecommendationEngine:
             logger.debug("cache hit key=%s id=%s", key[:8], cached.id)
             return cached
 
-        raw = await self._provider.complete(
+        result = await self._provider.complete(
             system=build_system_prompt(),
             user=build_user_prompt(prefs),
             max_tokens=self._settings.max_tokens,
         )
+        raw = result.text
 
         try:
             generated = GeneratedItinerary.model_validate_json(raw)
@@ -156,7 +157,11 @@ class RecommendationEngine:
 
         itinerary_id = uuid4()
         created_at = datetime.now(timezone.utc)
-        tokens_used = 0 if self._provider.name == "mock" else None
+        # Trust the provider-reported usage; mock reports None, which we record
+        # as 0 to distinguish "no model call" from "unknown".
+        tokens_used = (
+            0 if self._provider.name == "mock" else result.tokens_used
+        )
 
         response = ItineraryResponse.from_generated(
             id=itinerary_id,
@@ -166,6 +171,7 @@ class RecommendationEngine:
             provider=self._provider.name,  # type: ignore[arg-type]
             tokens_used=tokens_used,
             saved=False,  # fresh generation is a draft until explicitly saved
+            fallback_reason=result.fallback_reason,
         )
 
         await self._persist(response, session)

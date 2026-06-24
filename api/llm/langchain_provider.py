@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from api.llm.provider import LLMProvider
+from api.llm.provider import LLMProvider, LLMResult
 from api.recommend import LLMUnavailableError
 
 if TYPE_CHECKING:
@@ -43,7 +43,7 @@ class LangChainLLMProvider(LLMProvider):
             model_kwargs={"response_format": {"type": "json_object"}},
         )
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
         """Invoke the LangChain chat model and return its JSON content."""
         from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -56,4 +56,9 @@ class LangChainLLMProvider(LLMProvider):
             raise LLMUnavailableError(str(exc)) from exc
 
         content = result.content
-        return content if isinstance(content, str) else str(content)
+        text = content if isinstance(content, str) else str(content)
+        # LangChain exposes provider usage on ``usage_metadata`` (total_tokens)
+        # for backends that report it; absent for those that do not.
+        usage = getattr(result, "usage_metadata", None)
+        tokens_used = usage.get("total_tokens") if isinstance(usage, dict) else None
+        return LLMResult(text, tokens_used=tokens_used)

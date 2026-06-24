@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from api.cache import ItineraryCache
-from api.llm.provider import LLMProvider
+from api.llm.provider import LLMProvider, LLMResult
 from api.models import ItineraryResponse
 from api.recommend import LLMUnavailableError, RecommendationEngine
 
@@ -129,15 +129,15 @@ async def test_docs_and_openapi_resolve_with_static_mount(client) -> None:
 class _UnavailableProvider(LLMProvider):
     name = "openai"
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
         raise LLMUnavailableError("down")
 
 
 class _MalformedProvider(LLMProvider):
     name = "openai"
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:  # noqa: ARG002
-        return '{"bogus": true}'
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
+        return LLMResult('{"bogus": true}')
 
 
 async def test_llm_unavailable_maps_to_503_with_retry_after(
@@ -163,3 +163,37 @@ async def test_malformed_llm_maps_to_502(app, client, test_settings) -> None:
     resp = await client.post("/api/v1/itineraries", json=_payload())
     assert resp.status_code == 502
     assert resp.json()["detail"]["error"] == "itinerary_parse_failed"
+
+
+class _FallbackProvider(LLMProvider):
+    """A provider that degraded to the mock and reports a fallback reason."""
+
+    name = "gemini"
+
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
+        import json
+
+        from api.llm.mock_provider import build_mock_itinerary
+
+        return LLMResult(
+            json.dumps(build_mock_itinerary()),
+            fallback_reason="gemini_unavailable: 429 quota exceeded",
+        )
+
+
+async def test_silent_fallback_surfaces_via_header(
+    app, client, test_settings
+) -> None:
+    # A graceful provider degrade still returns 201 with an itinerary, but the
+    # X-LLM-Fallback header makes the otherwise-silent degrade visible.
+    app.state.engine = RecommendationEngine(
+        settings=test_settings,
+        provider=_FallbackProvider(),
+        cache=ItineraryCache(test_settings),
+    )
+    resp = await client.post("/api/v1/itineraries", json=_payload())
+    assert resp.status_code == 201
+    assert resp.headers.get("X-LLM-Fallback") == "gemini_unavailable: 429 quota exceeded"
+    # The itinerary is still returned; fallback_reason is not persisted, so it is
+    # surfaced only on this fresh generation response.
+    assert resp.json()["fallback_reason"] == "gemini_unavailable: 429 quota exceeded"
