@@ -80,24 +80,35 @@ def _provider(monkeypatch: pytest.MonkeyPatch, *, fallback: bool):
 
 
 async def test_itinerary_falls_back_to_mock_on_failure(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     provider = _provider(monkeypatch, fallback=True)
-    raw = await provider.complete(system="plan a trip", user="Tokyo", max_tokens=500)
+    with caplog.at_level("ERROR", logger="tai.llm.gemini"):
+        result = await provider.complete(
+            system="plan a trip", user="Tokyo", max_tokens=500
+        )
     # Valid itinerary JSON from the mock, not a 503.
-    generated = GeneratedItinerary.model_validate_json(raw)
+    generated = GeneratedItinerary.model_validate_json(result.text)
     assert generated.days
+    # The silent degrade is made visible via fallback_reason.
+    assert result.fallback_reason is not None
+    assert "gemini_unavailable" in result.fallback_reason
+    # ...and logged at ERROR (so it is picked up by Sentry, not buried at WARNING).
+    assert any(
+        rec.levelname == "ERROR" and "serving mock fallback" in rec.getMessage()
+        for rec in caplog.records
+    )
 
 
 async def test_discovery_falls_back_to_mock_on_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     provider = _provider(monkeypatch, fallback=True)
-    raw = await provider.complete(
+    result = await provider.complete(
         system=discovery_system(), user="hobbies are: hiking", max_tokens=500
     )
     # The mock branches on the discovery system prompt → recommendations JSON.
-    parsed = DestinationRecommendationResponse.model_validate_json(raw)
+    parsed = DestinationRecommendationResponse.model_validate_json(result.text)
     assert 4 <= len(parsed.recommendations) <= 6
 
 

@@ -82,7 +82,9 @@ async def test_retries_twice_then_succeeds(monkeypatch) -> None:
     _patch_no_wait(monkeypatch)
 
     out = await provider.complete(system="s", user="u", max_tokens=100)
-    assert out == '{"ok": true}'
+    assert out.text == '{"ok": true}'
+    # OpenAI usage is propagated onto the result so the engine can persist it.
+    assert out.tokens_used == 42
     assert calls["n"] == 3
 
 

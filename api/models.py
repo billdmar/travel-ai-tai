@@ -119,6 +119,12 @@ class ItineraryResponse(BaseModel):
     tokens_used: int | None = None
     #: Whether the user has explicitly saved this itinerary (vs. a draft).
     saved: bool = False
+    #: Set only when the selected provider silently degraded to the mock for
+    #: this generation (e.g. Gemini quota exhausted). Transient per-request — it
+    #: is never persisted, so a later cache hit returns ``None``. Lets the API
+    #: surface the degrade (e.g. an ``X-LLM-Fallback`` header) instead of hiding
+    #: it behind a log line.
+    fallback_reason: str | None = None
 
     @classmethod
     def from_generated(
@@ -131,6 +137,7 @@ class ItineraryResponse(BaseModel):
         provider: Literal["openai", "mock", "langchain", "gemini"],
         tokens_used: int | None,
         saved: bool = False,
+        fallback_reason: str | None = None,
     ) -> ItineraryResponse:
         """Assemble the full response from LLM content + server-owned fields."""
         return cls(
@@ -145,6 +152,7 @@ class ItineraryResponse(BaseModel):
             provider=provider,
             tokens_used=tokens_used,
             saved=saved,
+            fallback_reason=fallback_reason,
         )
 
 
