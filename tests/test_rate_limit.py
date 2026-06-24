@@ -96,3 +96,28 @@ async def test_eleventh_post_is_rate_limited(rate_limited_client) -> None:
     assert body["error"] == "rate_limit_exceeded"
     assert body["retry_after_seconds"] == 60
     assert last.headers.get("Retry-After") == "60"
+
+
+async def test_shared_get_is_rate_limited(rate_limited_client) -> None:
+    """The read limit (60/min) also throttles the public share GET."""
+    created = (
+        await rate_limited_client.post("/api/v1/itineraries", json=_payload())
+    ).json()
+    token = (
+        await rate_limited_client.post(
+            f"/api/v1/itineraries/{created['id']}/share"
+        )
+    ).json()["token"]
+
+    statuses = []
+    for _ in range(61):
+        resp = await rate_limited_client.get(f"/api/v1/shared/{token}")
+        statuses.append(resp.status_code)
+
+    # First 60 reads succeed; the 61st is throttled with a Retry-After.
+    assert statuses[:60] == [200] * 60
+    assert statuses[60] == 429
+    throttled = await rate_limited_client.get(f"/api/v1/shared/{token}")
+    assert throttled.status_code == 429
+    assert throttled.json()["error"] == "rate_limit_exceeded"
+    assert throttled.headers.get("Retry-After") == "60"
