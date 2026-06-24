@@ -80,7 +80,10 @@ class GeminiLLMProvider(LLMProvider):
             reraise=True,
         )
         async def _call() -> str:
-            resp = await self._model.generate_content_async(f"{system}\n\n{user}")
+            resp = await self._model.generate_content_async(
+                f"{system}\n\n{user}",
+                request_options={"timeout": self._settings.llm_timeout_seconds},
+            )
             usage = getattr(resp, "usage_metadata", None)
             total_tokens = getattr(usage, "total_token_count", None)
             if total_tokens is not None:

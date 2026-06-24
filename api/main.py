@@ -30,11 +30,16 @@ from api.cache import ItineraryCache
 from api.config import Settings, get_settings
 from api.db import build_engine, build_sessionmaker, create_all
 from api.llm.provider import get_provider
+from api.logging_config import setup_logging
+from api.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
 from api.ratelimit import limiter
 from api.recommend import RecommendationEngine
+from api.routes import export as export_routes
 from api.routes import health as health_routes
 from api.routes import images as image_routes
 from api.routes import itineraries as itinerary_routes
+from api.routes import share as share_routes
+from api.routes import stream as stream_routes
 
 try:  # discovery router is provided by a sibling branch; tolerate its absence.
     from api.routes.destinations import router as destinations_router
@@ -74,6 +79,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        setup_logging()
         await create_all(engine)
         yield
         await engine.dispose()
@@ -93,6 +99,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.sessionmaker = sessionmaker
     app.state.cache = cache
 
+    # Observability/security middleware (added before CORS so CORS runs
+    # outermost). BE-HARDEN fills these stubs with real behavior.
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestIDMiddleware)
     _configure_cors(app, settings)
     _configure_rate_limiting(app, settings)
     _configure_error_handlers(app)
@@ -102,6 +112,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_routes.router)
     app.include_router(itinerary_routes.router)
     app.include_router(image_routes.router)
+    app.include_router(export_routes.router)
+    app.include_router(share_routes.router)
+    app.include_router(stream_routes.router)
     if destinations_router is not None:
         app.include_router(destinations_router)
 
