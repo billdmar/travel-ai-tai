@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import ItineraryRecord, get_session
 from api.export import PDFExportUnavailable, render_markdown, render_pdf
+from api.ratelimit import rate_limit_export
 from api.recommend import record_to_response
 
 router = APIRouter(prefix="/api/v1", tags=["export"])
@@ -33,7 +34,10 @@ def _slug(destination: str) -> str:
     return slug or "itinerary"
 
 
-@router.get("/itineraries/{itinerary_id}/export")
+@router.get(
+    "/itineraries/{itinerary_id}/export",
+    dependencies=[Depends(rate_limit_export)],
+)
 async def export_itinerary(
     itinerary_id: UUID,
     format: Literal["markdown", "pdf"] = "markdown",
