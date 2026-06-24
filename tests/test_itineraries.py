@@ -39,7 +39,11 @@ async def test_post_end_before_start_returns_422(client) -> None:
     assert resp.status_code == 422
     body = resp.json()
     assert body["error"] == "validation_failed"
-    assert "detail" in body
+    # Generic, stable detail — no Pydantic internals leak to the client.
+    assert body["detail"] == "One or more fields were invalid."
+    serialized = resp.text
+    for leaked in ("loc", "type", "ctx"):
+        assert leaked not in serialized
 
 
 async def test_validate_preferences_valid(client) -> None:
