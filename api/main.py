@@ -124,10 +124,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 def _configure_cors(app: FastAPI, settings: Settings) -> None:
+    # The app uses no cookies/auth, so credentials are never sent cross-origin.
+    # Keeping ``allow_credentials=False`` avoids the credentials+origin footgun
+    # and lets the browser honour the explicit ``allow_origins`` allowlist.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )
