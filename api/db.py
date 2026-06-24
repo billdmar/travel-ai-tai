@@ -14,6 +14,7 @@ from typing import AsyncIterator
 
 from fastapi import Request
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -69,14 +70,59 @@ class ShareTokenRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+# libpq-only query params that hosted Postgres providers (Neon, Supabase, …)
+# append to the DSN they hand you. The asyncpg driver does not understand them
+# and raises ``TypeError: connect() got an unexpected keyword argument`` — so we
+# strip them from the URL and translate the SSL intent into asyncpg connect args.
+_LIBPQ_ONLY_QUERY_KEYS = ("sslmode", "channel_binding", "options")
+
+
+def _normalize_postgres_url(database_url: str) -> tuple[str, dict[str, object]]:
+    """Make a hosted-provider Postgres DSN drivable by SQLAlchemy + asyncpg.
+
+    Providers (Neon/Supabase/Render) give you a *plain* ``postgresql://`` URL,
+    often with ``?sslmode=require`` (and Neon's ``channel_binding``). SQLAlchemy's
+    async engine needs the ``+asyncpg`` driver, and asyncpg rejects the libpq-only
+    query params. This upgrades the scheme and converts ``sslmode`` into the
+    ``ssl`` connect arg, returning ``(clean_url, connect_args)``.
+    """
+    url = make_url(database_url)
+    if "+" not in url.drivername:  # bare "postgresql" / "postgres" → add driver.
+        url = url.set(drivername="postgresql+asyncpg")
+
+    query = dict(url.query)
+    sslmode = query.get("sslmode")
+    for key in _LIBPQ_ONLY_QUERY_KEYS:
+        query.pop(key, None)
+    url = url.set(query=query)
+
+    connect_args: dict[str, object] = {}
+    # Any sslmode other than an explicit "disable" means: require TLS. asyncpg
+    # takes an ``ssl`` flag, not libpq's sslmode string.
+    if sslmode is not None and sslmode != "disable":
+        connect_args["ssl"] = True
+
+    return url.render_as_string(hide_password=False), connect_args
+
+
 def build_engine(database_url: str) -> AsyncEngine:
-    """Create an async engine, auto-sizing the pool for SQLite vs. Postgres."""
+    """Create an async engine, auto-sizing the pool for SQLite vs. Postgres.
+
+    Postgres DSNs from hosted providers are normalized first (driver upgraded,
+    libpq-only query params translated) so a raw provider connection string can
+    be pasted into ``DATABASE_URL`` without manual editing.
+    """
     if database_url.startswith("sqlite"):
         # SQLite uses a single connection; pool sizing args do not apply.
         return create_async_engine(database_url, future=True)
     # Postgres-ready connection pooling for the "scalable" story.
+    normalized_url, connect_args = _normalize_postgres_url(database_url)
     return create_async_engine(
-        database_url, future=True, pool_size=10, max_overflow=20
+        normalized_url,
+        future=True,
+        pool_size=10,
+        max_overflow=20,
+        connect_args=connect_args,
     )
 
 
