@@ -175,6 +175,13 @@ def _configure_error_handlers(app: FastAPI) -> None:
         )
 
 
+# Hashed Vite assets (``/assets/<name>-<hash>.<ext>``) are content-addressed, so
+# they can be cached forever; ``index.html`` must never be cached or clients
+# would pin a stale asset manifest.
+_IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
+_NO_CACHE = "no-cache"
+
+
 def _mount_spa(app: FastAPI) -> None:
     """Mount the built React SPA at ``/`` with a catch-all (if it exists)."""
     if not _WEB_DIST.is_dir():
@@ -186,8 +193,17 @@ def _mount_spa(app: FastAPI) -> None:
     async def spa_catch_all(full_path: str) -> Response:
         candidate = _WEB_DIST / full_path
         if full_path and candidate.is_file():
-            return FileResponse(candidate)
-        return FileResponse(index_file)
+            # Hashed assets are immutable; everything else served as a file is
+            # not aggressively cached (it could be index.html under a path).
+            cache_control = (
+                _IMMUTABLE_CACHE
+                if full_path.startswith("assets/")
+                else _NO_CACHE
+            )
+            return FileResponse(
+                candidate, headers={"Cache-Control": cache_control}
+            )
+        return FileResponse(index_file, headers={"Cache-Control": _NO_CACHE})
 
     app.mount("/", StaticFiles(directory=str(_WEB_DIST), html=True), name="static")
 
