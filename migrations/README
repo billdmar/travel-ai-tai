@@ -1,0 +1,16 @@
+Alembic migrations for Travel AI (TAI).
+
+env.py reads DATABASE_URL from api.config.Settings and builds the async engine
+via api.db.build_engine, so migrations target the same DB the app uses (with the
+same async-driver selection and hosted-Postgres DSN normalization). alembic.ini's
+sqlalchemy.url is intentionally unset.
+
+Common commands (run from the repo root, with the venv active):
+
+    alembic upgrade head                      # apply all migrations
+    alembic revision --autogenerate -m "..."  # create a migration from model changes
+    alembic check                             # fail if models have drifted from head
+
+On deploy, Postgres is migrated automatically: the app lifespan runs
+`alembic upgrade head` when DATABASE_URL points at Postgres. SQLite/dev keeps the
+zero-config Base.metadata.create_all path.
