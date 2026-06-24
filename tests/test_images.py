@@ -169,3 +169,80 @@ async def test_missing_query_is_422(engine, sessionmaker) -> None:
     async for client in _client(app):
         resp = await client.get("/api/v1/images")
     assert resp.status_code == 422
+
+
+async def test_skips_candidate_without_regular_url(
+    monkeypatch, engine, sessionmaker
+) -> None:
+    """A first result missing a ``regular`` URL is skipped for a usable one."""
+    payload = {
+        "results": [
+            {"urls": {"thumb": "https://images.unsplash.com/x?w=200"}},  # no regular
+            {
+                "urls": {
+                    "regular": "https://images.unsplash.com/photo-2?w=1080",
+                    "thumb": "https://images.unsplash.com/photo-2?w=200",
+                },
+                "alt_description": "kyoto bamboo grove",
+                "user": {
+                    "name": "Aki",
+                    "links": {"html": "https://unsplash.com/@aki"},
+                },
+            },
+        ]
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    _install_mock_transport(monkeypatch, handler)
+    app = _app(_settings(UNSPLASH_ACCESS_KEY="test-key"), sessionmaker)
+    async for client in _client(app):
+        resp = await client.get("/api/v1/images", params={"query": "Kyoto"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["fallback"] is False
+    assert body["url"] == "https://images.unsplash.com/photo-2?w=1080"
+    assert body["alt"] == "kyoto bamboo grove"
+
+
+async def test_no_usable_candidate_returns_fallback(
+    monkeypatch, engine, sessionmaker
+) -> None:
+    """Results that all lack a ``regular`` URL degrade to the fallback."""
+    payload = {"results": [{"urls": {"thumb": "t"}}, {"not": "a photo"}]}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=payload)
+
+    _install_mock_transport(monkeypatch, handler)
+    app = _app(_settings(UNSPLASH_ACCESS_KEY="test-key"), sessionmaker)
+    async for client in _client(app):
+        resp = await client.get("/api/v1/images", params={"query": "Nowhere"})
+
+    assert resp.status_code == 200
+    assert resp.json()["fallback"] is True
+
+
+async def test_long_query_is_capped_upstream(
+    monkeypatch, engine, sessionmaker
+) -> None:
+    """Oversized queries are trimmed before hitting Unsplash (defensive cap)."""
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["query"] = request.url.params.get("query", "")
+        return httpx.Response(200, json=_UNSPLASH_PAYLOAD)
+
+    _install_mock_transport(monkeypatch, handler)
+    app = _app(_settings(UNSPLASH_ACCESS_KEY="test-key"), sessionmaker)
+    long_query = "Tokyo " + "x" * 500
+    async for client in _client(app):
+        resp = await client.get("/api/v1/images", params={"query": long_query})
+
+    assert resp.status_code == 200
+    # Upstream query is capped well below the raw input length.
+    assert len(seen["query"]) <= 120
+    # But the public alt still reflects the caller's original query intent.
+    assert resp.json()["fallback"] is False
