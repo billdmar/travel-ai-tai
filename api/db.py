@@ -65,7 +65,9 @@ class ShareTokenRecord(Base):
 
     token: Mapped[str] = mapped_column(String(64), primary_key=True)
     itinerary_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("itinerary_records.id"), index=True
+        String(36),
+        ForeignKey("itinerary_records.id", ondelete="CASCADE"),
+        index=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 

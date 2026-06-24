@@ -14,7 +14,7 @@ from __future__ import annotations
 import secrets
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import ItineraryRecord, ShareTokenRecord
@@ -60,6 +60,22 @@ async def mint_share_token(session: AsyncSession, itinerary_id: str) -> str | No
     )
     await session.commit()
     return token
+
+
+async def delete_tokens_for_itinerary(
+    session: AsyncSession, itinerary_id: str
+) -> None:
+    """Delete every share token pointing at ``itinerary_id``.
+
+    Called when an itinerary is (soft-)deleted so its public share links stop
+    resolving. The caller owns the surrounding transaction; this issues the
+    DELETE but does not commit.
+    """
+    await session.execute(
+        delete(ShareTokenRecord).where(
+            ShareTokenRecord.itinerary_id == itinerary_id
+        )
+    )
 
 
 async def lookup_share_token(
