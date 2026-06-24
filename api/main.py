@@ -27,7 +27,7 @@ from slowapi.errors import RateLimitExceeded
 
 from api.cache import ItineraryCache
 from api.config import Settings, get_settings
-from api.db import build_engine, build_sessionmaker, create_all
+from api.db import build_engine, build_sessionmaker, create_all, run_migrations
 from api.llm.provider import get_provider
 from api.logging_config import setup_logging
 from api.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
@@ -81,7 +81,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         setup_logging()
-        await create_all(engine)
+        # Schema bootstrap. Postgres (the documented prod backend) is brought to
+        # the latest schema with Alembic so versioned changes apply on deploy.
+        # SQLite/dev keeps the zero-config create_all path — it also keeps the
+        # test harness fast (tests inject their own engine + create_all and never
+        # touch this branch).
+        if settings.is_postgres:
+            await run_migrations()
+        else:
+            await create_all(engine)
         yield
         await engine.dispose()
 

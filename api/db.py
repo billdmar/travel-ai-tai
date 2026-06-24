@@ -10,6 +10,7 @@ dependency without touching module globals.
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import Request
@@ -40,10 +41,10 @@ class ItineraryRecord(Base):
     provider: Mapped[str] = mapped_column(String(32))
     tokens_used: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Explicit-save marker: NULL for drafts (generation always persists, but a
-    # row only appears in the Saved list once the user saves it). NOTE: existing
-    # SQLite DBs created before this column was added need a manual
-    # `ALTER TABLE itinerary_records ADD COLUMN saved_at DATETIME` — a fresh DB
-    # (created via create_all) already has it.
+    # row only appears in the Saved list once the user saves it). Schema changes
+    # like this column are now managed by Alembic (see migrations/): run
+    # `alembic upgrade head` to bring an existing DB up to date — no manual
+    # ALTER TABLE. A fresh DB created via create_all already has it.
     saved_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
@@ -137,6 +138,37 @@ async def create_all(engine: AsyncEngine) -> None:
     """Create all tables (used by the app lifespan and the test harness)."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+# Repo root holds alembic.ini and the migrations/ dir (api/ is one level down).
+_ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
+
+
+def _upgrade_to_head() -> None:
+    """Synchronously run ``alembic upgrade head`` (alembic is sync-only).
+
+    Reads ``alembic.ini`` at the repo root; ``migrations/env.py`` reads the
+    target DB from settings and builds the engine via :func:`build_engine`, so
+    no URL needs threading through here.
+    """
+    from alembic import command
+    from alembic.config import Config
+
+    command.upgrade(Config(str(_ALEMBIC_INI)), "head")
+
+
+async def run_migrations() -> None:
+    """Bring the configured database to the latest schema via Alembic.
+
+    Alembic's ``command.upgrade`` is synchronous and its async ``env.py`` calls
+    ``asyncio.run`` internally, which would explode if invoked on the running
+    event loop — so we hand it to a worker thread. Used by the app lifespan for
+    Postgres (the documented prod backend); SQLite/dev keeps using
+    :func:`create_all`.
+    """
+    import asyncio
+
+    await asyncio.to_thread(_upgrade_to_head)
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
