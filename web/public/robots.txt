@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://travel-ai-tai.onrender.com/sitemap.xml
