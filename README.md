@@ -17,6 +17,10 @@ multi-step frontend.
 
 **🔗 Live demo:** [https://travel-ai-tai.onrender.com](https://travel-ai-tai.onrender.com) — runs in mock-LLM mode (no API key), so itineraries are generated from a deterministic stub. _Free tier sleeps when idle; first request may take ~30s to wake._
 
+<p align="center">
+  <img src="docs/screenshots/best/home-desktop-slide1-amadablam.png" alt="Travel AI home page — a masked photographic hero with the serif headline “Trips that begin with what you love.”" width="100%">
+</p>
+
 ---
 
 ## Features
@@ -45,6 +49,29 @@ multi-step frontend.
   collapsible day cards with Map + Book links, an FTC affiliate-disclosure banner, a
   saved-trips page, and friendly error states for validation / rate-limit / LLM-unavailable
   cases.
+
+## Screenshots
+
+A quiet-luxury interface: warm ivory + charcoal with a sparing blue-green accent, Cormorant
+serif headlines over an Inter body, and slow eased motion with strict reduced-motion fallbacks.
+
+| Discover destinations | Tailored results |
+|---|---|
+| [![Explore page — a curated grid of destinations under the headline “Somewhere worth the flight.”](docs/screenshots/best/explore-desktop.png)](docs/screenshots/best/explore-desktop.png) | [![Results page — destination cards generated from your interests under “Destinations made for you.”](docs/screenshots/best/results-desktop.png)](docs/screenshots/best/results-desktop.png) |
+
+| Destination landing | Day-by-day itinerary |
+|---|---|
+| [![Kyoto destination landing page with an editorial hero and a “Plan a trip here” call to action.](docs/screenshots/best/destination-kyoto-desktop.png)](docs/screenshots/best/destination-kyoto-desktop.png) | [![Generated Kyoto itinerary with budget breakdown, collapsible day cards, and Map + Book links.](docs/screenshots/best/itinerary-desktop.png)](docs/screenshots/best/itinerary-desktop.png) |
+
+**Shared, read-only itinerary** — a public link with no save/delete controls:
+
+[![Shared itinerary page — a read-only Kyoto trip plan with a “Plan your own” link.](docs/screenshots/best/share-desktop.png)](docs/screenshots/best/share-desktop.png)
+
+**Responsive & accessible** — mobile layouts, a slide-in nav, and a `prefers-reduced-motion` fallback that drops the Ken Burns hero motion:
+
+| Mobile hero | Mobile nav | Reduced motion |
+|---|---|---|
+| <img src="docs/screenshots/best/home-mobile-hero.png" alt="Mobile home hero with the serif headline over a masked mountain photo." width="100%"> | <img src="docs/screenshots/best/nav-mobile-open.png" alt="Mobile slide-in navigation drawer over the results page." width="100%"> | <img src="docs/screenshots/best/home-desktop-reduced-motion.png" alt="Home page rendered with prefers-reduced-motion: the hero photo is static, no Ken Burns pan." width="100%"> |
 
 ## Architecture
 
