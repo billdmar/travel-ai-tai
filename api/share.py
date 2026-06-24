@@ -84,12 +84,18 @@ async def lookup_share_token(
     """Resolve a share token to its read-only itinerary response.
 
     Returns ``None`` if the token is unknown or its itinerary has since been
-    soft-deleted.
+    soft-deleted. The ``deleted_at IS NULL`` filter is applied in the query so a
+    soft-deleted parent never resolves, independent of the delete-time token
+    cleanup — defense in depth.
     """
-    share = await session.get(ShareTokenRecord, token)
-    if share is None:
-        return None
-    record = await session.get(ItineraryRecord, share.itinerary_id)
-    if record is None or record.deleted_at is not None:
+    record = await session.scalar(
+        select(ItineraryRecord)
+        .join(ShareTokenRecord, ShareTokenRecord.itinerary_id == ItineraryRecord.id)
+        .where(
+            ShareTokenRecord.token == token,
+            ItineraryRecord.deleted_at.is_(None),
+        )
+    )
+    if record is None:
         return None
     return record_to_response(record)
