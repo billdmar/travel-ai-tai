@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { recommendDestinations } from '../api/client'
 import { ApiError } from '../api/client'
 import type { ResultsLocationState } from '../types/discovery'
-import { Button, Container, Reveal, Section } from '../components/ui'
+import {
+  Button,
+  Container,
+  Reveal,
+  Section,
+  softGlow,
+  variableSerif,
+} from '../components/ui'
 
 // Curated hobby palette. Order is deliberate — broad-appeal first.
 const HOBBIES = [
@@ -70,13 +77,21 @@ export default function DiscoverPage() {
   }
 
   return (
-    <Section size="cozy">
+    <Section size="cozy" className="relative isolate overflow-hidden">
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10"
+        style={softGlow('top-left')}
+      />
       <Container narrow>
         <Reveal>
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-accent-700">
             Step 1 of 2
           </p>
-          <h1 className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl">
+          <h1
+            className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl"
+            style={variableSerif(560)}
+          >
             What do you love to do?
           </h1>
           <p className="mt-5 text-lg leading-relaxed text-ink-soft">
@@ -94,9 +109,9 @@ export default function DiscoverPage() {
                   type="button"
                   aria-pressed={active}
                   onClick={() => toggle(hobby)}
-                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${
+                  className={`rounded-full border px-4 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] duration-hover ease-lux motion-safe:hover:-translate-y-0.5 ${
                     active
-                      ? 'border-accent-500 bg-accent-500 text-white'
+                      ? 'border-accent-500 bg-accent-500 text-white shadow-frame'
                       : 'border-ink-line bg-canvas-raised text-ink-soft hover:border-accent-300 hover:text-ink'
                   }`}
                 >
