@@ -30,3 +30,7 @@ services:
       # In-memory cache (no Redis needed on the free tier).
       - key: CACHE_BACKEND
         value: memory
+      # CORS allowlist — the live origin. Code defaults to localhost:5173 for
+      # dev; production locks it to the deployed origin (credentials are off).
+      - key: ALLOWED_ORIGINS
+        value: https://travel-ai-tai.onrender.com
