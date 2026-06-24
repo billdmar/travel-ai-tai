@@ -31,6 +31,7 @@ from api.recommend import (
     RecommendationEngine,
     record_to_response,
 )
+from api.share import delete_tokens_for_itinerary
 
 router = APIRouter(prefix="/api/v1", tags=["itineraries"])
 
@@ -173,6 +174,8 @@ async def delete_itinerary(
             detail={"error": "itinerary_not_found"},
         )
     record.deleted_at = datetime.now(timezone.utc)
+    # Invalidate any public share links so a deleted trip stops resolving.
+    await delete_tokens_for_itinerary(session, record.id)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

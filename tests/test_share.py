@@ -90,6 +90,20 @@ async def test_share_after_soft_delete_404(client) -> None:
     assert resp.status_code == 404
 
 
+async def test_delete_itinerary_invalidates_share_token(client) -> None:
+    """Deleting an itinerary must stop its share link resolving (was 200)."""
+    created = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    iid = created["id"]
+    token = (await client.post(f"/api/v1/itineraries/{iid}/share")).json()["token"]
+    assert (await client.get(f"/api/v1/shared/{token}")).status_code == 200
+
+    assert (await client.delete(f"/api/v1/itineraries/{iid}")).status_code == 204
+
+    gone = await client.get(f"/api/v1/shared/{token}")
+    assert gone.status_code == 404
+    assert gone.json()["detail"]["error"] == "share_token_not_found"
+
+
 async def test_shared_unknown_token_404(client) -> None:
     resp = await client.get(f"/api/v1/shared/{_UNKNOWN_TOKEN}")
     assert resp.status_code == 404
