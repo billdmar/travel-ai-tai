@@ -15,7 +15,9 @@ import logging
 from typing import TYPE_CHECKING
 
 import httpx
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
+
+from api.ratelimit import rate_limit_image
 
 if TYPE_CHECKING:
     from api.config import Settings
@@ -73,7 +75,7 @@ def _first_usable(results: list, query: str) -> dict | None:
     return None
 
 
-@router.get("/images")
+@router.get("/images", dependencies=[Depends(rate_limit_image)])
 async def get_image(request: Request, query: str = Query(..., min_length=1)) -> dict:
     """Return a single Unsplash photo for ``query`` (or a fallback envelope).
 

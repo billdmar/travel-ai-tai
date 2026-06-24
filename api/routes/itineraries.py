@@ -24,7 +24,7 @@ from api.models import (
     ItineraryResponse,
     TravelPreferences,
 )
-from api.ratelimit import rate_limit
+from api.ratelimit import rate_limit, rate_limit_get, rate_limit_list
 from api.recommend import (
     ItineraryParseError,
     LLMUnavailableError,
@@ -71,7 +71,11 @@ async def create_itinerary(
         ) from exc
 
 
-@router.get("/itineraries/{itinerary_id}", response_model=ItineraryResponse)
+@router.get(
+    "/itineraries/{itinerary_id}",
+    response_model=ItineraryResponse,
+    dependencies=[Depends(rate_limit_get)],
+)
 async def get_itinerary(
     itinerary_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -109,7 +113,11 @@ async def save_itinerary(
     return record_to_response(record)
 
 
-@router.get("/itineraries", response_model=ItineraryListResponse)
+@router.get(
+    "/itineraries",
+    response_model=ItineraryListResponse,
+    dependencies=[Depends(rate_limit_list)],
+)
 async def list_itineraries(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),

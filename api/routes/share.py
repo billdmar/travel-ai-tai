@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import get_session
 from api.models import ItineraryResponse
+from api.ratelimit import rate_limit_shared
 from api.share import lookup_share_token, mint_share_token
 
 router = APIRouter(prefix="/api/v1", tags=["share"])
@@ -42,7 +43,11 @@ async def create_share_link(
     return {"token": token}
 
 
-@router.get("/shared/{token}", response_model=ItineraryResponse)
+@router.get(
+    "/shared/{token}",
+    response_model=ItineraryResponse,
+    dependencies=[Depends(rate_limit_shared)],
+)
 async def get_shared_itinerary(
     token: str,
     session: AsyncSession = Depends(get_session),
