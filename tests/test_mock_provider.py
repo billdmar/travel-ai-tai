@@ -54,10 +54,10 @@ async def test_mock_complete_honors_requested_destination() -> None:
         end_date=date(2026, 8, 3),
         budget_usd=1200.0,
     )
-    raw = await MockLLMProvider().complete(
+    result = await MockLLMProvider().complete(
         system="days schema", user=build_user_prompt(prefs), max_tokens=100
     )
-    generated = GeneratedItinerary.model_validate_json(raw)
+    generated = GeneratedItinerary.model_validate_json(result.text)
     assert len(generated.days) == 3  # honors the 3-day request
     assert "Rome, Italy" in generated.summary
 
@@ -65,8 +65,10 @@ async def test_mock_complete_honors_requested_destination() -> None:
 async def test_mock_complete_output_validates() -> None:
     provider = MockLLMProvider()
     assert provider.name == "mock"
-    raw = await provider.complete(system="s", user="u", max_tokens=100)
-    generated = GeneratedItinerary.model_validate_json(raw)
+    result = await provider.complete(system="s", user="u", max_tokens=100)
+    # The mock makes no model call, so it reports no token usage.
+    assert result.tokens_used is None
+    generated = GeneratedItinerary.model_validate_json(result.text)
     # cost total equals the sum of activity costs in the mock
     summed = sum(
         a.estimated_cost_usd for day in generated.days for a in day.activities

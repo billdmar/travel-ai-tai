@@ -11,10 +11,30 @@ from __future__ import annotations
 
 import threading
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from api.config import Settings
+
+
+@dataclass(frozen=True)
+class LLMResult:
+    """A provider completion plus the observability metadata around it.
+
+    ``text`` is the raw JSON completion (the only thing earlier code returned).
+    ``tokens_used`` carries the provider-reported usage when available (Gemini's
+    ``total_token_count``, OpenAI's ``usage.total_tokens``) so the engine can
+    persist a real value instead of hardcoding ``None``; it stays ``None`` when
+    the provider reports nothing (mock, or a response without usage metadata).
+    ``fallback_reason`` is set when a provider silently degraded to the mock
+    (e.g. Gemini quota exhausted) so the failure is visible upstream instead of
+    only in a log line.
+    """
+
+    text: str
+    tokens_used: int | None = None
+    fallback_reason: str | None = None
 
 
 class LLMProvider(ABC):
@@ -24,8 +44,8 @@ class LLMProvider(ABC):
     name: str
 
     @abstractmethod
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:
-        """Return the model's raw completion as a JSON string.
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:
+        """Return the model's completion plus token/fallback metadata.
 
         Args:
             system: The system prompt constraining output to JSON.

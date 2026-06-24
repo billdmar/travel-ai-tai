@@ -20,7 +20,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from api.llm.provider import TOKEN_COUNTER, LLMProvider
+from api.llm.provider import TOKEN_COUNTER, LLMProvider, LLMResult
 from api.recommend import LLMUnavailableError
 
 if TYPE_CHECKING:
@@ -42,8 +42,8 @@ class OpenAILLMProvider(LLMProvider):
         self._model = settings.openai_model
         self._client = AsyncOpenAI(api_key=settings.openai_api_key)
 
-    async def complete(self, system: str, user: str, max_tokens: int) -> str:
-        """Generate an itinerary JSON string, retrying transient failures."""
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:
+        """Generate an itinerary completion, retrying transient failures."""
         import openai
 
         @retry(
@@ -54,7 +54,7 @@ class OpenAILLMProvider(LLMProvider):
             wait=wait_exponential(multiplier=1, min=1, max=10),
             reraise=True,
         )
-        async def _call() -> str:
+        async def _call() -> LLMResult:
             response = await self._client.chat.completions.create(
                 model=self._model,
                 response_format={"type": "json_object"},
@@ -66,12 +66,14 @@ class OpenAILLMProvider(LLMProvider):
                 ],
             )
             usage = response.usage
+            tokens_used = None
             if usage is not None:
-                TOKEN_COUNTER.add(usage.total_tokens)
-                logger.info(
-                    "tokens_used=%d model=%s", usage.total_tokens, self._model
-                )
-            return response.choices[0].message.content or ""
+                tokens_used = usage.total_tokens
+                TOKEN_COUNTER.add(tokens_used)
+                logger.info("tokens_used=%d model=%s", tokens_used, self._model)
+            return LLMResult(
+                response.choices[0].message.content or "", tokens_used=tokens_used
+            )
 
         try:
             return await _call()

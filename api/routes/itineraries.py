@@ -49,16 +49,20 @@ def _engine(request: Request) -> RecommendationEngine:
 async def create_itinerary(
     request: Request,
     preferences: TravelPreferences,
+    response: Response,
     session: AsyncSession = Depends(get_session),
 ) -> ItineraryResponse:
     """Generate a personalized itinerary from travel preferences.
 
     Rate-limited to 10 requests/minute/IP via the ``rate_limit`` dependency
-    when rate limiting is enabled.
+    when rate limiting is enabled. When the selected provider silently degraded
+    to the mock for this request (e.g. Gemini quota exhausted), the visible
+    ``X-LLM-Fallback`` header carries the reason so clients/monitoring can see
+    it (the itinerary itself is still returned).
     """
     engine = _engine(request)
     try:
-        return await engine.generate(preferences, session)
+        itinerary = await engine.generate(preferences, session)
     except LLMUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -70,6 +74,9 @@ async def create_itinerary(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail={"error": "itinerary_parse_failed"},
         ) from exc
+    if itinerary.fallback_reason is not None:
+        response.headers["X-LLM-Fallback"] = itinerary.fallback_reason
+    return itinerary
 
 
 @router.get(

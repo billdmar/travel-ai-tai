@@ -60,11 +60,12 @@ async def recommend_destinations(
 ) -> DestinationRecommendationResponse:
     """Recommend 4-6 destinations matching the user's hobbies."""
     try:
-        raw = await provider.complete(
+        result = await provider.complete(
             system=build_system_prompt(),
             user=build_user_prompt(payload),
             max_tokens=2000,
         )
+        raw = result.text
     except LLMUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
