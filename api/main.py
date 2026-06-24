@@ -19,7 +19,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, AsyncIterator
 
 from fastapi import FastAPI, Request, status
-from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -48,6 +47,8 @@ except ImportError:  # pragma: no cover - present only after the merge.
 
 if TYPE_CHECKING:
     from fastapi.responses import Response
+
+logger = logging.getLogger("tai.main")
 
 _WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
 
@@ -162,11 +163,15 @@ def _configure_error_handlers(app: FastAPI) -> None:
     async def _on_validation_error(
         _request: Request, exc: RequestValidationError
     ) -> JSONResponse:
+        # Log the full Pydantic errors server-side for debugging, but return a
+        # generic envelope so loc/type/ctx schema internals never leak.
+        logger.warning("validation_failed errors=%s", exc.errors())
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content=jsonable_encoder(
-                {"error": "validation_failed", "detail": exc.errors()}
-            ),
+            content={
+                "error": "validation_failed",
+                "detail": "One or more fields were invalid.",
+            },
         )
 
 
