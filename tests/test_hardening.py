@@ -104,6 +104,26 @@ async def test_health_has_no_dependencies(client) -> None:
     assert resp.json()["status"] == "ok"
 
 
+# ── Static asset caching ────────────────────────────────────────────────────
+async def test_hashed_asset_served_immutable(client) -> None:
+    """Hashed Vite assets carry a long-lived immutable Cache-Control."""
+    from api.main import _WEB_DIST
+
+    assets = list((_WEB_DIST / "assets").glob("*.js"))
+    assert assets, "expected a built web/dist/assets to exist"
+    resp = await client.get(f"/assets/{assets[0].name}")
+    assert resp.status_code == 200
+    assert resp.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+
+
+async def test_index_html_not_cached(client) -> None:
+    """The SPA entrypoint must never be aggressively cached."""
+    resp = await client.get("/")
+    assert resp.status_code == 200
+    assert "immutable" not in resp.headers.get("Cache-Control", "")
+    assert resp.headers["Cache-Control"] == "no-cache"
+
+
 # ── Structured JSON logging ─────────────────────────────────────────────────
 def test_json_formatter_includes_request_id() -> None:
     formatter = JsonLogFormatter()
