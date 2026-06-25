@@ -84,6 +84,21 @@ export function createItinerary(prefs: TravelPreferences): Promise<ItineraryResp
   })
 }
 
+/**
+ * Regenerate a trip from adjusted preferences, anchored to an existing trip id.
+ * POST /api/v1/itineraries/{id}/regenerate -> a fresh ItineraryResponse (new
+ * id). The source trip is not mutated; 404 if it no longer exists.
+ */
+export function regenerateItinerary(
+  id: string,
+  prefs: TravelPreferences,
+): Promise<ItineraryResponse> {
+  return request<ItineraryResponse>(
+    `${BASE}/itineraries/${encodeURIComponent(id)}/regenerate`,
+    { method: 'POST', body: JSON.stringify(prefs) },
+  )
+}
+
 export function getItinerary(id: string): Promise<ItineraryResponse> {
   return request<ItineraryResponse>(`${BASE}/itineraries/${encodeURIComponent(id)}`)
 }
