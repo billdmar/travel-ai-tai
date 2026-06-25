@@ -94,6 +94,23 @@ describe('PreferenceForm dietary & accessibility inputs', () => {
   })
 })
 
+describe('PreferenceForm slider accessibility', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('exposes a human-readable aria-valuetext on the budget slider', async () => {
+    const user = userEvent.setup()
+    render(<PreferenceForm onSubmit={vi.fn()} />)
+
+    // Advance to step 2 ("Budget & group") where the range inputs live.
+    await user.type(screen.getByPlaceholderText(/Tokyo, Japan/), 'Lisbon')
+    await user.click(screen.getByRole('button', { name: 'Next' }))
+
+    // The slider default is $2,000 — screen readers should hear that, not "2000".
+    const budget = screen.getByRole('slider', { name: /Budget/ })
+    expect(budget).toHaveAttribute('aria-valuetext', '$2,000 per person')
+  })
+})
+
 /**
  * Token-hygiene guard. ``tailwind.config.js`` defines ONLY the accent / ink /
  * canvas scales — there is no ``brand-*`` scale, and ``slate-*`` / ``bg-white``

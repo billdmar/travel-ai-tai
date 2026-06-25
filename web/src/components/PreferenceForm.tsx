@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   Pace,
   TravelPreferences,
@@ -126,6 +126,7 @@ function CustomNeedsField({ noun, curated, selected, onChange }: CustomNeedsFiel
 
 export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormProps) {
   const [step, setStep] = useState(1)
+  const cardRef = useRef<HTMLDivElement>(null)
 
   const [destination, setDestination] = useState('')
   const [startDate, setStartDate] = useState(today())
@@ -140,6 +141,20 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
   const [notes, setNotes] = useState('')
 
   const [stepError, setStepError] = useState<string | null>(null)
+
+  // On step change, bring the wizard card back into view so the new step's
+  // heading isn't scrolled off-screen on tall pages / small viewports. Skip the
+  // initial mount (step 1) so we don't yank a freshly-loaded page around.
+  const mounted = useRef(false)
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true
+      return
+    }
+    // ``scrollIntoView`` is absent under jsdom (and older browsers) — guard it
+    // so the wizard never throws where the API isn't implemented.
+    cardRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+  }, [step])
 
   function validateStep1(): string | null {
     if (!destination.trim()) return 'Please enter a destination.'
@@ -191,7 +206,10 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
   const progress = (step / TOTAL_STEPS) * 100
 
   return (
-    <div className="mx-auto max-w-2xl rounded-xl border border-ink-line bg-canvas-raised p-6 shadow-frame sm:p-8">
+    <div
+      ref={cardRef}
+      className="mx-auto max-w-2xl rounded-xl border border-ink-line bg-canvas-raised p-6 shadow-frame sm:p-8"
+    >
       {/* Progress bar */}
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between text-sm font-medium text-ink-soft">
@@ -212,8 +230,14 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
         <section className="space-y-5">
           <h2 className="text-xl font-semibold text-ink">Where & when?</h2>
           <div>
-            <label className="mb-1 block text-sm font-medium text-ink-soft">Destination</label>
+            <label
+              htmlFor="pref-destination"
+              className="mb-1 block text-sm font-medium text-ink-soft"
+            >
+              Destination
+            </label>
             <input
+              id="pref-destination"
               type="text"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
@@ -223,8 +247,14 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink-soft">Start date</label>
+              <label
+                htmlFor="pref-start-date"
+                className="mb-1 block text-sm font-medium text-ink-soft"
+              >
+                Start date
+              </label>
               <input
+                id="pref-start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -232,8 +262,14 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-ink-soft">End date</label>
+              <label
+                htmlFor="pref-end-date"
+                className="mb-1 block text-sm font-medium text-ink-soft"
+              >
+                End date
+              </label>
               <input
+                id="pref-end-date"
                 type="date"
                 value={endDate}
                 min={startDate}
@@ -250,16 +286,20 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
           <h2 className="text-xl font-semibold text-ink">Budget & group</h2>
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm font-medium text-ink-soft">Budget (per person)</label>
+              <label htmlFor="pref-budget" className="text-sm font-medium text-ink-soft">
+                Budget (per person)
+              </label>
               <span className="font-semibold text-accent-700">${budget.toLocaleString()}</span>
             </div>
             <input
+              id="pref-budget"
               type="range"
               min={100}
               max={10000}
               step={100}
               value={budget}
               onChange={(e) => setBudget(Number(e.target.value))}
+              aria-valuetext={`$${budget.toLocaleString()} per person`}
               className="w-full accent-accent-500"
             />
             <div className="flex justify-between text-xs text-ink-faint">
@@ -269,18 +309,22 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
           </div>
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm font-medium text-ink-soft">Group size</label>
+              <label htmlFor="pref-group-size" className="text-sm font-medium text-ink-soft">
+                Group size
+              </label>
               <span className="font-semibold text-accent-700">
                 {groupSize} {groupSize === 1 ? 'traveler' : 'travelers'}
               </span>
             </div>
             <input
+              id="pref-group-size"
               type="range"
               min={1}
               max={20}
               step={1}
               value={groupSize}
               onChange={(e) => setGroupSize(Number(e.target.value))}
+              aria-valuetext={`${groupSize} ${groupSize === 1 ? 'traveler' : 'travelers'}`}
               className="w-full accent-accent-500"
             />
             <div className="flex justify-between text-xs text-ink-faint">
@@ -288,8 +332,8 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               <span>20</span>
             </div>
           </div>
-          <div>
-            <p className="mb-2 text-sm font-medium text-ink-soft">Travel style</p>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-ink-soft">Travel style</legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {TRAVEL_STYLES.map((opt) => (
                 <label
@@ -321,15 +365,15 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                 </label>
               ))}
             </div>
-          </div>
+          </fieldset>
         </section>
       )}
 
       {step === 3 && (
         <section className="space-y-6">
           <h2 className="text-xl font-semibold text-ink">Pace & interests</h2>
-          <div>
-            <p className="mb-2 text-sm font-medium text-ink-soft">Pace</p>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-ink-soft">Pace</legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {PACES.map((opt) => (
                 <label
@@ -358,9 +402,9 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                 </label>
               ))}
             </div>
-          </div>
-          <div>
-            <p className="mb-2 text-sm font-medium text-ink-soft">Interests</p>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-ink-soft">Interests</legend>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {INTEREST_OPTIONS.map((opt) => {
                 const checked = interests.includes(opt)
@@ -384,15 +428,15 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                 )
               })}
             </div>
-          </div>
+          </fieldset>
         </section>
       )}
 
       {step === 4 && (
         <section className="space-y-6">
           <h2 className="text-xl font-semibold text-ink">Needs & notes</h2>
-          <div>
-            <p className="mb-2 text-sm font-medium text-ink-soft">Dietary needs</p>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-ink-soft">Dietary needs</legend>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {DIETARY_OPTIONS.map((opt) => {
                 const checked = dietary.includes(opt)
@@ -422,9 +466,9 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               selected={dietary}
               onChange={setDietary}
             />
-          </div>
-          <div>
-            <p className="mb-2 text-sm font-medium text-ink-soft">Accessibility needs</p>
+          </fieldset>
+          <fieldset>
+            <legend className="mb-2 text-sm font-medium text-ink-soft">Accessibility needs</legend>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {ACCESSIBILITY_OPTIONS.map((opt) => {
                 const checked = accessibility.includes(opt)
@@ -454,10 +498,16 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               selected={accessibility}
               onChange={setAccessibility}
             />
-          </div>
+          </fieldset>
           <div>
-            <label className="mb-1 block text-sm font-medium text-ink-soft">Notes (optional)</label>
+            <label
+              htmlFor="pref-notes"
+              className="mb-1 block text-sm font-medium text-ink-soft"
+            >
+              Notes (optional)
+            </label>
             <textarea
+              id="pref-notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}

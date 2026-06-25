@@ -1,14 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-
-const { navigateMock } = vi.hoisted(() => ({ navigateMock: vi.fn() }))
-
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
-  return { ...actual, useNavigate: () => navigateMock }
-})
 
 import ResultsPage from '../pages/ResultsPage'
 import { makeRecommendation, stubImageFetch } from './fixtures'
@@ -23,7 +15,6 @@ function renderPage(state?: unknown) {
 
 describe('ResultsPage', () => {
   beforeEach(() => {
-    navigateMock.mockReset()
     stubImageFetch()
   })
   afterEach(() => vi.restoreAllMocks())
@@ -60,13 +51,12 @@ describe('ResultsPage', () => {
     expect(screen.getByText(/Based on/)).toHaveTextContent(/food, history/)
   })
 
-  it('navigates to the plan route carrying hobbies + recommendation when a card is clicked', async () => {
-    const user = userEvent.setup()
+  it('renders each card as a router link to the plan route (preserving link semantics)', () => {
     const rec = makeRecommendation({ name: 'Kyoto', country: 'Japan' })
     renderPage({ hobbies: ['Food'], recommendations: [rec] })
-    await user.click(screen.getByRole('button', { name: /Kyoto/ }))
-    expect(navigateMock).toHaveBeenCalledWith('/plan/Kyoto', {
-      state: { hobbies: ['Food'], recommendation: rec },
-    })
+    // The card is a real <Link> (role="link"), not a click-handler button — this
+    // keeps keyboard activation + right-click "open in new tab" working.
+    const card = screen.getByRole('link', { name: /Kyoto/ })
+    expect(card).toHaveAttribute('href', '/plan/Kyoto')
   })
 })
