@@ -17,7 +17,7 @@ import importlib.util
 
 import pytest
 
-from api.export import FTC_DISCLOSURE, render_markdown
+from api.export import FTC_DISCLOSURE, render_ics, render_markdown
 from api.models import ItineraryResponse
 
 # fpdf2 is an optional/prod dependency; skip PDF byte assertions if absent.
@@ -108,6 +108,25 @@ async def test_export_bad_format_returns_422(client) -> None:
     assert resp.status_code == 422
 
 
+async def test_export_ics_download(client) -> None:
+    created = await _create(client)
+    resp = await client.get(f"/api/v1/itineraries/{created['id']}/export?format=ics")
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/calendar")
+    assert "attachment" in resp.headers["content-disposition"]
+    assert resp.headers["content-disposition"].endswith('.ics"')
+
+    body = resp.text
+    # A well-formed VCALENDAR envelope with at least one event.
+    assert "BEGIN:VCALENDAR" in body
+    assert "VERSION:2.0" in body
+    assert "BEGIN:VEVENT" in body
+    assert body.rstrip().endswith("END:VCALENDAR")
+    # RFC 5545 mandates CRLF line endings.
+    assert "\r\n" in body
+
+
 # ── direct renderer unit coverage ───────────────────────────────────────────
 
 
@@ -161,3 +180,110 @@ def test_render_pdf_returns_pdf_bytes() -> None:
     out = render_pdf(_sample_itinerary())
     assert isinstance(out, bytes)
     assert out[:5] == b"%PDF-"
+
+
+# ── ICS renderer unit coverage ──────────────────────────────────────────────
+
+
+def _parse_ics(text: str) -> list[dict[str, str]]:
+    """Minimal RFC 5545 parser: unfold lines, return the list of VEVENT dicts.
+
+    Unfolds continuation lines (lines beginning with a space) and collects each
+    ``NAME[;params]:value`` pair occurring between BEGIN:VEVENT / END:VEVENT.
+    """
+    # Unfold: a CRLF followed by a single space/tab is a continuation.
+    unfolded = text.replace("\r\n ", "").replace("\r\n\t", "")
+    events: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    for raw in unfolded.split("\r\n"):
+        if not raw:
+            continue
+        if raw == "BEGIN:VEVENT":
+            current = {}
+        elif raw == "END:VEVENT":
+            assert current is not None
+            events.append(current)
+            current = None
+        elif current is not None:
+            name, _, value = raw.partition(":")
+            current[name.split(";", 1)[0]] = value
+    return events
+
+
+def test_render_ics_parses_as_vcalendar_with_one_vevent_per_activity() -> None:
+    ics = render_ics(_sample_itinerary())
+    # Envelope and trailing CRLF.
+    assert ics.startswith("BEGIN:VCALENDAR\r\n")
+    assert ics.endswith("END:VCALENDAR\r\n")
+
+    events = _parse_ics(ics)
+    # The sample has a single day with a single activity.
+    assert len(events) == 1
+    event = events[0]
+    assert event["SUMMARY"] == "09:00 Tsukiji Market"
+    # Commas in the destination are escaped per §3.3.11 (Tokyo\,Japan).
+    assert event["LOCATION"] == "Tsukiji Market\\, Tokyo\\, Japan"
+    assert event["DTSTART"] == "20260701"
+    # Date-based events are inclusive→exclusive: DTEND is the following day.
+    assert event["DTEND"] == "20260702"
+    # Stable UID anchored to the day + the export domain.
+    assert event["UID"].endswith("@travel-ai.tai")
+    assert "DTSTAMP" in event
+
+
+def test_render_ics_escapes_special_text() -> None:
+    itinerary = _sample_itinerary()
+    # Inject commas/semicolons/newlines that MUST be escaped per §3.3.11.
+    itinerary.days[0].activities[0].place = "Cafe, Bar; Grill"
+    itinerary.days[0].activities[0].description = "Line one\nLine two"
+    ics = render_ics(itinerary)
+
+    # Raw (unparsed) output carries the escapes; parsing strips none of them
+    # because the comma/semicolon/newline live inside the value, not as params.
+    assert "Cafe\\, Bar\\; Grill" in ics
+    assert "Line one\\nLine two" in ics
+
+
+def test_render_ics_emits_one_event_per_activity_across_days() -> None:
+    itinerary = _sample_itinerary()
+    # Add a second day with two activities -> 1 + 2 = 3 events total.
+    itinerary.days.append(
+        ItineraryResponse.model_validate(
+            {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "created_at": "2026-07-01T00:00:00Z",
+                "preferences": _payload(),
+                "days": [
+                    {
+                        "day_number": 2,
+                        "date": "2026-07-02",
+                        "theme": "Temples",
+                        "activities": [
+                            {
+                                "time": "10:00",
+                                "place": "Senso-ji",
+                                "description": "Temple visit.",
+                                "estimated_cost_usd": 0.0,
+                                "category": "attraction",
+                                "map_url": "https://maps.example/senso",
+                            },
+                            {
+                                "time": "14:00",
+                                "place": "Ueno Park",
+                                "description": "Stroll.",
+                                "estimated_cost_usd": 0.0,
+                                "category": "leisure",
+                                "map_url": "https://maps.example/ueno",
+                            },
+                        ],
+                    }
+                ],
+                "total_estimated_cost_usd": 25.0,
+                "currency": "USD",
+                "summary": "Two days.",
+                "tips": [],
+                "provider": "mock",
+            }
+        ).days[0]
+    )
+    assert len(_parse_ics(render_ics(itinerary))) == 3
