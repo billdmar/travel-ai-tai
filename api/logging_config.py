@@ -23,6 +23,20 @@ request_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "request_id", default=None
 )
 
+#: Per-request HTTP context (path / method / client IP) captured by the
+#: RequestIDMiddleware alongside the request id, so every log line emitted while
+#: handling a request is automatically correlated to it without the call site
+#: having to thread it through. Each defaults to ``None`` outside a request.
+request_path_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "request_path", default=None
+)
+request_method_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "request_method", default=None
+)
+client_ip_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "client_ip", default=None
+)
+
 _RESERVED = frozenset(
     logging.makeLogRecord({}).__dict__.keys()
 ) | {"message", "asctime", "taskName"}
@@ -44,6 +58,16 @@ class JsonLogFormatter(logging.Formatter):
         request_id = request_id_var.get()
         if request_id is not None:
             payload["request_id"] = request_id
+
+        # HTTP request context, present only while a request is being handled.
+        for field, var in (
+            ("path", request_path_var),
+            ("method", request_method_var),
+            ("client_ip", client_ip_var),
+        ):
+            value = var.get()
+            if value is not None:
+                payload[field] = value
 
         if record.exc_info:
             payload["exc_info"] = self.formatException(record.exc_info)
