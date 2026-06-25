@@ -7,6 +7,7 @@ import {
   fetchImage,
   getItinerary,
   recommendDestinations,
+  streamItinerary,
 } from '../api/client'
 import type { TravelPreferences } from '../types/itinerary'
 
@@ -187,5 +188,89 @@ describe('exportItinerary', () => {
     await expect(exportItinerary('it_1', 'markdown')).rejects.toMatchObject({
       status: 0,
     })
+  })
+})
+
+/** Build a streaming Response whose body replays the given SSE text verbatim. */
+function sseResponse(status: number, sse: string): Response {
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(sse))
+      controller.close()
+    },
+  })
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: new Headers(),
+    body: stream,
+    text: async () => '',
+  } as unknown as Response
+}
+
+describe('streamItinerary', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('delivers progress chunks and resolves with the terminal itinerary', async () => {
+    const sse =
+      'data: Planning your trip to Kyoto...\n\n' +
+      `data: ${JSON.stringify({ id: 'it_1', provider: 'mock', days: [] })}\n\n`
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse(200, sse)))
+
+    const chunks: string[] = []
+    const result = await streamItinerary(PREFS, (c) => chunks.push(c))
+
+    expect((result as { id: string }).id).toBe('it_1')
+    // Progress text is surfaced; the terminal JSON is the last chunk.
+    expect(chunks[0]).toContain('Kyoto')
+    expect(chunks).toHaveLength(2)
+  })
+
+  it('re-raises a named error event as ApiError(503) for llm_unavailable', async () => {
+    // Regression: previously the client parsed this envelope as the final
+    // ItineraryResponse, JSON.parse "succeeded" on the object, and the real
+    // llm_unavailable code was masked (or a generic 502 parse_error thrown).
+    const sse =
+      'data: Planning your trip...\n\n' +
+      'event: error\ndata: {"error": "llm_unavailable"}\n\n'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse(200, sse)))
+
+    const chunks: string[] = []
+    const err = (await streamItinerary(PREFS, (c) => chunks.push(c)).catch(
+      (e) => e,
+    )) as ApiError
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.status).toBe(503)
+    expect(err.body).toEqual({ error: 'llm_unavailable' })
+    // The error envelope must NOT leak to onChunk as if it were progress text.
+    expect(chunks).toEqual(['Planning your trip...'])
+  })
+
+  it('re-raises a named error event as ApiError(502) for itinerary_parse_failed', async () => {
+    const sse = 'event: error\ndata: {"error": "itinerary_parse_failed"}\n\n'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse(200, sse)))
+
+    const err = (await streamItinerary(PREFS, () => {}).catch((e) => e)) as ApiError
+    expect(err.status).toBe(502)
+    expect(err.body).toEqual({ error: 'itinerary_parse_failed' })
+  })
+
+  it('falls back to ApiError(502) for an unrecognized error code', async () => {
+    const sse = 'event: error\ndata: {"error": "mystery"}\n\n'
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse(200, sse)))
+
+    const err = (await streamItinerary(PREFS, () => {}).catch((e) => e)) as ApiError
+    expect(err.status).toBe(502)
+    expect(err.body).toEqual({ error: 'mystery' })
+  })
+
+  it('throws ApiError(502, parse_error) when the stream ends without itinerary JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(sseResponse(200, 'data: still working...\n\n')),
+    )
+    const err = (await streamItinerary(PREFS, () => {}).catch((e) => e)) as ApiError
+    expect(err.status).toBe(502)
+    expect(err.body).toMatchObject({ error: 'parse_error' })
   })
 })

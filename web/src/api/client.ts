@@ -216,14 +216,30 @@ export function getSharedItinerary(token: string): Promise<ItineraryResponse> {
 }
 
 /**
+ * Map a streaming in-band error envelope code to the HTTP status the
+ * non-streaming routes use, so callers can branch on `ApiError.status`
+ * identically whether they used POST /itineraries or the SSE stream. Mirrors
+ * api/routes/itineraries.py: llm_unavailable -> 503, itinerary_parse_failed ->
+ * 502. Unknown codes fall back to 502 (the stream produced an unusable result).
+ */
+const STREAM_ERROR_STATUS: Record<string, number> = {
+  llm_unavailable: 503,
+  itinerary_parse_failed: 502,
+}
+
+/**
  * Stream an itinerary generation as it is produced. FROZEN contract:
  * POST /api/v1/itineraries/stream -> text/event-stream. Each text chunk is
  * delivered via ``onChunk``; the promise resolves with the final
- * ItineraryResponse parsed from the terminal ``done`` event.
+ * ItineraryResponse parsed from the terminal ``data:`` event.
  *
  * Implemented over fetch + ReadableStream (EventSource cannot POST a body). The
- * server is expected to emit SSE ``data:`` lines, the last carrying the full
- * ItineraryResponse JSON.
+ * server emits SSE ``data:`` lines, the last carrying the full
+ * ItineraryResponse JSON. A mid-stream provider failure instead arrives as a
+ * named ``event: error`` whose ``data:`` line is an `{ "error": "<code>" }`
+ * envelope; on detecting it we reject with an ApiError carrying the real status
+ * (503/502), so the stream surfaces the same code the rest of the app does
+ * rather than a generic parse error.
  */
 export async function streamItinerary(
   prefs: TravelPreferences,
@@ -247,6 +263,12 @@ export async function streamItinerary(
   const decoder = new TextDecoder()
   let buffer = ''
   let lastData = ''
+  // SSE event-type lines (`event: error`) scope the `data:` lines that follow,
+  // up to the blank line that terminates the event. We track the current event
+  // name so a failure event's payload is routed to the error path instead of
+  // being mistaken for a progress chunk or the terminal itinerary.
+  let currentEvent = ''
+  let errorData = ''
 
   for (;;) {
     const { done, value } = await reader.read()
@@ -257,12 +279,44 @@ export async function streamItinerary(
     while ((nl = buffer.indexOf('\n')) !== -1) {
       const line = buffer.slice(0, nl).trimEnd()
       buffer = buffer.slice(nl + 1)
+      if (line === '') {
+        // Blank line terminates the current event; reset its scope.
+        currentEvent = ''
+        continue
+      }
+      if (line.startsWith('event:')) {
+        currentEvent = line.slice(6).trim()
+        continue
+      }
       if (!line.startsWith('data:')) continue
       const data = line.slice(5).trimStart()
       if (!data) continue
+      if (currentEvent === 'error') {
+        // Capture the failure envelope; do not surface it as a progress chunk.
+        errorData = data
+        continue
+      }
       lastData = data
       onChunk(data)
     }
+  }
+
+  // A named error event was emitted mid-stream: re-raise it with the real
+  // status code (mirroring the non-streaming POST /itineraries mapping) so
+  // callers see the true llm_unavailable (503) / itinerary_parse_failed (502)
+  // rather than a generic parse failure.
+  if (errorData) {
+    let body: unknown
+    try {
+      body = JSON.parse(errorData)
+    } catch {
+      body = errorData
+    }
+    const code =
+      body && typeof body === 'object' && 'error' in body
+        ? String((body as Record<string, unknown>).error)
+        : ''
+    throw new ApiError(STREAM_ERROR_STATUS[code] ?? 502, body)
   }
 
   try {

@@ -55,14 +55,17 @@ def _error_event(code: str) -> str:
     return json.dumps(ErrorResponse(error=code).model_dump(exclude_none=True))
 
 
-def _sse(data: str) -> str:
-    """Encode ``data`` as a single SSE ``data:`` event.
+def _sse(data: str, *, event: str | None = None) -> str:
+    """Encode ``data`` as a single SSE event.
 
     Each line of ``data`` is prefixed (per the SSE spec multi-line rule) and the
-    event is terminated by a blank line.
+    event is terminated by a blank line. When ``event`` is given, a leading
+    ``event:`` line names the event type so the client can distinguish it from
+    the unnamed progress/terminal ``data:`` events without parsing the payload.
     """
+    prefix = f"event: {event}\n" if event is not None else ""
     body = "".join(f"data: {line}\n" for line in (data.splitlines() or [""]))
-    return f"{body}\n"
+    return f"{prefix}{body}\n"
 
 
 async def _event_source(
@@ -75,8 +78,12 @@ async def _event_source(
     Progress strings are sent as plain-text ``data:`` events; the terminal
     ``ItineraryResponse`` is serialized to JSON as the final ``data:`` event so
     it round-trips through ``JSON.parse`` on the client. LLM failures are
-    surfaced mid-stream as an ``error`` JSON event (the HTTP status is already
-    200 once streaming starts, so errors must travel in-band).
+    surfaced mid-stream as a named ``event: error`` event whose ``data:`` line
+    carries the shared ``{"error": "<code>"}`` envelope (the HTTP status is
+    already 200 once streaming starts, so errors must travel in-band). The
+    ``event: error`` name lets the client distinguish a failure from the
+    terminal itinerary and re-raise it with the real status code, mirroring the
+    non-streaming ``POST /itineraries`` mapping.
     """
     try:
         async for item in stream_itinerary(engine, prefs, session):
@@ -97,10 +104,10 @@ async def _event_source(
                 yield _sse(item)
     except LLMUnavailableError as exc:
         logger.warning("stream llm_unavailable: %s", exc)
-        yield _sse(_error_event("llm_unavailable"))
+        yield _sse(_error_event("llm_unavailable"), event="error")
     except ItineraryParseError as exc:
         logger.warning("stream itinerary_parse_failed: %s", exc)
-        yield _sse(_error_event("itinerary_parse_failed"))
+        yield _sse(_error_event("itinerary_parse_failed"), event="error")
 
 
 @router.post(
@@ -121,9 +128,10 @@ async def stream_itinerary_endpoint(
 
     Returns ``text/event-stream``; the final event carries the full
     ``ItineraryResponse`` JSON. Once the 200 stream has started, provider
-    failures arrive in-band as an :class:`~api.models.ErrorResponse` ``data:``
-    event (``llm_unavailable`` / ``itinerary_parse_failed``) rather than an HTTP
-    error status.
+    failures arrive in-band as a named ``event: error`` event whose ``data:``
+    line is an :class:`~api.models.ErrorResponse` envelope
+    (``llm_unavailable`` / ``itinerary_parse_failed``) rather than an HTTP error
+    status; the client re-raises it with the real status code.
     """
     engine = _engine(request)
     return StreamingResponse(
