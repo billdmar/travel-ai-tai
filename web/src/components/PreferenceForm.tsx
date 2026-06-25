@@ -48,6 +48,82 @@ function toggle(list: string[], value: string): string[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
 }
 
+interface CustomNeedsFieldProps {
+  /** Human label for the kind of need, e.g. "dietary need" — used in aria text. */
+  noun: string
+  /** The curated options shown as checkboxes; anything else counts as custom. */
+  curated: string[]
+  /** The full selected list (curated + custom) for this need. */
+  selected: string[]
+  onChange: (next: string[]) => void
+}
+
+/**
+ * Free-text escape hatch for the curated checkbox lists. The backend accepts
+ * arbitrary strings for ``dietary_needs`` / ``accessibility_needs``, so this lets
+ * a user add anything the curated list doesn't cover (e.g. "shellfish allergy").
+ * Custom entries are rendered as removable chips; values already present in the
+ * curated list are filtered out here so they stay owned by the checkboxes above.
+ */
+function CustomNeedsField({ noun, curated, selected, onChange }: CustomNeedsFieldProps) {
+  const [draft, setDraft] = useState('')
+  const customValues = selected.filter((v) => !curated.includes(v))
+
+  function add() {
+    const value = draft.trim()
+    if (!value) return
+    if (!selected.includes(value)) onChange([...selected, value])
+    setDraft('')
+  }
+
+  return (
+    <div className="mt-3">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              add()
+            }
+          }}
+          aria-label={`Add a custom ${noun}`}
+          placeholder={`Add another ${noun}…`}
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+        />
+        <button
+          type="button"
+          onClick={add}
+          className="shrink-0 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        >
+          Add
+        </button>
+      </div>
+      {customValues.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-2">
+          {customValues.map((value) => (
+            <li key={value}>
+              <span className="inline-flex items-center gap-1 rounded-full border border-brand-500 bg-brand-50 py-1 pl-3 pr-1 text-sm text-slate-700">
+                {value}
+                <button
+                  type="button"
+                  onClick={() => onChange(selected.filter((v) => v !== value))}
+                  aria-label={`Remove ${value}`}
+                  className="rounded-full px-1.5 text-slate-500 transition hover:bg-brand-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                >
+                  ×
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormProps) {
   const [step, setStep] = useState(1)
 
@@ -340,6 +416,12 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                 )
               })}
             </div>
+            <CustomNeedsField
+              noun="dietary need"
+              curated={DIETARY_OPTIONS}
+              selected={dietary}
+              onChange={setDietary}
+            />
           </div>
           <div>
             <p className="mb-2 text-sm font-medium text-slate-700">Accessibility needs</p>
@@ -366,6 +448,12 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                 )
               })}
             </div>
+            <CustomNeedsField
+              noun="accessibility need"
+              curated={ACCESSIBILITY_OPTIONS}
+              selected={accessibility}
+              onChange={setAccessibility}
+            />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Notes (optional)</label>
