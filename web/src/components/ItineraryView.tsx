@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ItineraryResponse } from '../types/itinerary'
-import { saveItinerary } from '../api/client'
+import { removeDayActivity, reorderDayActivities, saveItinerary } from '../api/client'
 import { money } from '../lib/format'
 import { Reveal } from '../components/ui'
 import { DestinationImage } from './DestinationImage'
@@ -38,12 +38,24 @@ interface ItineraryViewProps {
 type SaveState = 'idle' | 'saving' | 'saved'
 
 export default function ItineraryView({
-  itinerary,
+  itinerary: initialItinerary,
   onReset,
   onViewSaved,
   onAdjust,
   readOnly = false,
 }: ItineraryViewProps) {
+  // Local copy so in-place edits (reorder/remove activities) re-render
+  // optimistically. Reseeded during render (React's "adjust state when a prop
+  // changes" pattern) whenever a different itinerary is passed in — keyed on the
+  // server-owned id — so navigating between trips discards a prior edit buffer
+  // without a cascading effect.
+  const [itinerary, setItinerary] = useState<ItineraryResponse>(initialItinerary)
+  const [seededId, setSeededId] = useState(initialItinerary.id)
+  if (initialItinerary.id !== seededId) {
+    setItinerary(initialItinerary)
+    setSeededId(initialItinerary.id)
+  }
+
   const { id, preferences, days, total_estimated_cost_usd, currency, summary, tips, provider } =
     itinerary
 
@@ -53,7 +65,9 @@ export default function ItineraryView({
   )
 
   const [viewMode, setViewMode] = useState<ViewMode>('list')
-  const [saveState, setSaveState] = useState<SaveState>(itinerary.saved ? 'saved' : 'idle')
+  const [editing, setEditing] = useState(false)
+  const [editError, setEditError] = useState<unknown>(null)
+  const [saveState, setSaveState] = useState<SaveState>(initialItinerary.saved ? 'saved' : 'idle')
   const [saveError, setSaveError] = useState<unknown>(null)
   const [showToast, setShowToast] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -63,6 +77,54 @@ export default function ItineraryView({
       if (toastTimer.current) clearTimeout(toastTimer.current)
     }
   }, [])
+
+  // Optimistically apply an in-place day edit, then reconcile with the server's
+  // re-normalized response (authoritative grand total + map/booking links). On
+  // failure we revert to the pre-edit snapshot and surface an error banner.
+  async function applyEdit(
+    optimistic: ItineraryResponse,
+    call: () => Promise<ItineraryResponse>,
+  ) {
+    const previous = itinerary
+    setEditError(null)
+    setItinerary(optimistic)
+    try {
+      setItinerary(await call())
+    } catch (err) {
+      setItinerary(previous)
+      setEditError(err)
+    }
+  }
+
+  function handleReorder(dayNumber: number, from: number, to: number) {
+    const day = days.find((d) => d.day_number === dayNumber)
+    if (!day) return
+    if (to < 0 || to >= day.activities.length) return
+    // Build the index permutation that swaps `from` and `to`.
+    const order = day.activities.map((_, i) => i)
+    ;[order[from], order[to]] = [order[to], order[from]]
+    const reordered = order.map((i) => day.activities[i])
+    const optimistic: ItineraryResponse = {
+      ...itinerary,
+      days: days.map((d) =>
+        d.day_number === dayNumber ? { ...d, activities: reordered } : d,
+      ),
+    }
+    void applyEdit(optimistic, () => reorderDayActivities(id, dayNumber, order))
+  }
+
+  function handleRemove(dayNumber: number, index: number) {
+    const day = days.find((d) => d.day_number === dayNumber)
+    if (!day) return
+    const remaining = day.activities.filter((_, i) => i !== index)
+    const optimistic: ItineraryResponse = {
+      ...itinerary,
+      days: days.map((d) =>
+        d.day_number === dayNumber ? { ...d, activities: remaining } : d,
+      ),
+    }
+    void applyEdit(optimistic, () => removeDayActivity(id, dayNumber, index))
+  }
 
   async function handleSave() {
     if (saveState !== 'idle') return
@@ -84,6 +146,10 @@ export default function ItineraryView({
     <div className="mx-auto max-w-4xl space-y-6">
       {saveError != null && (
         <ErrorBanner error={saveError} onDismiss={() => setSaveError(null)} onRetry={handleSave} />
+      )}
+
+      {editError != null && (
+        <ErrorBanner error={editError} onDismiss={() => setEditError(null)} />
       )}
 
       {/* Editorial cover photo — sets the travel-magazine tone */}
@@ -254,36 +320,69 @@ export default function ItineraryView({
         <CostBreakdown itinerary={itinerary} />
       </Reveal>
 
-      {/* List | Map toggle — List is the default; Map lazy-loads Leaflet */}
-      <div
-        role="group"
-        aria-label="Itinerary view"
-        className="inline-flex rounded-full border border-ink-line bg-canvas-raised p-1"
-      >
-        <button
-          type="button"
-          onClick={() => setViewMode('list')}
-          aria-pressed={viewMode === 'list'}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-hover focus-visible:outline-none ${
-            viewMode === 'list'
-              ? 'bg-ink text-canvas'
-              : 'text-ink-soft hover:text-ink'
-          }`}
+      {/* List | Map toggle (+ owner-only Edit toggle for in-place editing) */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          role="group"
+          aria-label="Itinerary view"
+          className="inline-flex rounded-full border border-ink-line bg-canvas-raised p-1"
         >
-          List
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode('map')}
-          aria-pressed={viewMode === 'map'}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-hover focus-visible:outline-none ${
-            viewMode === 'map'
-              ? 'bg-ink text-canvas'
-              : 'text-ink-soft hover:text-ink'
-          }`}
-        >
-          Map
-        </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            aria-pressed={viewMode === 'list'}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-hover focus-visible:outline-none ${
+              viewMode === 'list'
+                ? 'bg-ink text-canvas'
+                : 'text-ink-soft hover:text-ink'
+            }`}
+          >
+            List
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('map')}
+            aria-pressed={viewMode === 'map'}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-hover focus-visible:outline-none ${
+              viewMode === 'map'
+                ? 'bg-ink text-canvas'
+                : 'text-ink-soft hover:text-ink'
+            }`}
+          >
+            Map
+          </button>
+        </div>
+
+        {/* Edit toggle — owner-only, and only meaningful in the List view where
+            the per-activity reorder/remove controls live. */}
+        {!readOnly && viewMode === 'list' && (
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            aria-pressed={editing}
+            className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm font-medium transition-colors duration-hover focus-visible:outline-none ${
+              editing
+                ? 'border-accent-300 bg-accent-50 text-accent-700'
+                : 'border-ink-line bg-canvas-raised text-ink-soft hover:text-ink'
+            }`}
+          >
+            <svg
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            {editing ? 'Done editing' : 'Edit activities'}
+          </button>
+        )}
       </div>
 
       {viewMode === 'map' ? (
@@ -312,6 +411,9 @@ export default function ItineraryView({
                 grandTotal={grandTotal}
                 defaultOpen={i === 0}
                 destination={preferences.destination}
+                editing={editing}
+                onReorder={(from, to) => handleReorder(day.day_number, from, to)}
+                onRemove={(index) => handleRemove(day.day_number, index)}
               />
             </Reveal>
           ))}

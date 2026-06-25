@@ -8,6 +8,7 @@ handlers stay thin and the app factory owns construction.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -19,6 +20,9 @@ from api.config import Settings
 from api.db import ItineraryRecord, get_session
 from api.llm.provider import TOKEN_COUNTER
 from api.models import (
+    Activity,
+    DayActivitiesReorderRequest,
+    GeneratedItinerary,
     ItineraryListResponse,
     ItineraryResponse,
     TravelPreferences,
@@ -28,6 +32,7 @@ from api.recommend import (
     ItineraryParseError,
     LLMUnavailableError,
     RecommendationEngine,
+    normalize_generated,
     record_to_list_item,
     record_to_response,
 )
@@ -251,6 +256,149 @@ async def delete_itinerary(
     await delete_tokens_for_itinerary(session, record.id)
     await session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+async def _edit_day_activities(
+    *,
+    itinerary_id: UUID,
+    day_number: int,
+    session: AsyncSession,
+    mutate: Callable[[list[Activity]], list[Activity]],
+) -> ItineraryResponse:
+    """Load a live itinerary, edit one day's activity list, and re-persist it.
+
+    Shared by the reorder (PUT) and remove (DELETE) endpoints. The stored
+    ``itinerary_json`` is the LLM-facing :class:`GeneratedItinerary` blob; we
+    parse it, locate the target day by ``day_number`` (404 if absent, e.g. an
+    out-of-range day), and hand that day's activity list to ``mutate`` which
+    returns the new ordering/subset. The whole itinerary is then re-run through
+    :func:`normalize_generated` so the grand total and the per-activity map and
+    booking links stay consistent with the new activity set, the corrected blob
+    is written back **in place** on the existing record, and the refreshed
+    :class:`ItineraryResponse` is returned.
+
+    This is an in-place content edit of an already-persisted itinerary keyed by
+    its opaque id — consistent with the no-auth, single-session model (the
+    record the user is holding), so no ownership check is involved. A missing or
+    soft-deleted itinerary, or an out-of-range day/index, surfaces the shared
+    ``itinerary_not_found`` error envelope as a 404.
+    """
+    record = await session.get(ItineraryRecord, str(itinerary_id))
+    if record is None or record.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "itinerary_not_found"},
+        )
+
+    preferences = TravelPreferences.model_validate_json(record.preferences_json)
+    generated = GeneratedItinerary.model_validate_json(record.itinerary_json)
+
+    target = next(
+        (day for day in generated.days if day.day_number == day_number), None
+    )
+    if target is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "itinerary_not_found"},
+        )
+
+    # ``mutate`` raises HTTPException(404) for an out-of-range index/order; on
+    # success it returns the new activity list for this day.
+    new_activities = mutate(list(target.activities))
+
+    new_days = [
+        day.model_copy(update={"activities": new_activities})
+        if day.day_number == day_number
+        else day
+        for day in generated.days
+    ]
+    edited = generated.model_copy(update={"days": new_days})
+    # Re-derive grand total + canonical map/booking links so everything reconciles
+    # with the new activity set before storing.
+    edited = normalize_generated(edited, preferences)
+
+    record.itinerary_json = edited.model_dump_json()
+    await session.commit()
+    await session.refresh(record)
+    return record_to_response(record)
+
+
+@router.put(
+    "/itineraries/{itinerary_id}/days/{day_number}/activities",
+    response_model=ItineraryResponse,
+    dependencies=[Depends(rate_limit)],
+)
+async def reorder_day_activities(
+    itinerary_id: UUID,
+    day_number: int,
+    body: DayActivitiesReorderRequest,
+    session: AsyncSession = Depends(get_session),
+) -> ItineraryResponse:
+    """Reorder a day's activities without re-running the LLM (idempotent).
+
+    ``body.order`` is a permutation of the day's current activity indices; the
+    server rearranges its own activity objects to match (it never trusts client
+    content), re-normalizes, persists the edit in place, and returns the updated
+    :class:`ItineraryResponse`. Applying the same order twice yields the same
+    stored result, so the operation is idempotent. 404 if the itinerary is
+    missing/soft-deleted, the day does not exist, or ``order`` is not a valid
+    permutation of the day's activities (wrong length, duplicates, or an index
+    out of range). Carries the write rate limit.
+    """
+
+    def _reorder(activities: list[Activity]) -> list[Activity]:
+        order = body.order
+        valid = sorted(order) == list(range(len(activities)))
+        if not valid:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": "activity_index_out_of_range"},
+            )
+        return [activities[i] for i in order]
+
+    return await _edit_day_activities(
+        itinerary_id=itinerary_id,
+        day_number=day_number,
+        session=session,
+        mutate=_reorder,
+    )
+
+
+@router.delete(
+    "/itineraries/{itinerary_id}/days/{day_number}/activities/{activity_index}",
+    response_model=ItineraryResponse,
+    dependencies=[Depends(rate_limit)],
+)
+async def remove_day_activity(
+    itinerary_id: UUID,
+    day_number: int,
+    activity_index: int,
+    session: AsyncSession = Depends(get_session),
+) -> ItineraryResponse:
+    """Remove one activity from a day without re-running the LLM.
+
+    Deletes the activity at ``activity_index`` within the day, re-normalizes
+    (so the grand total drops by that activity's cost and the remaining map and
+    booking links stay consistent), persists the edit in place, and returns the
+    updated :class:`ItineraryResponse`. 404 if the itinerary is
+    missing/soft-deleted, the day does not exist, or the index is out of range.
+    Carries the write rate limit.
+    """
+
+    def _remove(activities: list[Activity]) -> list[Activity]:
+        if not 0 <= activity_index < len(activities):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": "activity_index_out_of_range"},
+            )
+        return [a for i, a in enumerate(activities) if i != activity_index]
+
+    return await _edit_day_activities(
+        itinerary_id=itinerary_id,
+        day_number=day_number,
+        session=session,
+        mutate=_remove,
+    )
 
 
 @router.post("/preferences/validate")
