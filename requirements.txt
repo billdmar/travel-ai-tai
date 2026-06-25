@@ -43,3 +43,10 @@ sentry-sdk>=2,<3
 # api/export.py; if absent, PDF export degrades to a clean 503 (mirrors the
 # Gemini-SDK lazy-import split) while Markdown export keeps working.
 fpdf2>=2.7,<3
+
+# Dynamic Open Graph share-card rendering — pure-Python wheels (no native
+# system deps beyond what the manylinux Pillow wheel bundles), so it is
+# prod-safe on the slim image. Imported lazily in api/routes/og.py to draw the
+# 1200x630 PNG share card. Upper bound left open through 12.x to match the wheel
+# already resolved in CI/dev (10 is the floor for the scalable load_default).
+Pillow>=10,<13
