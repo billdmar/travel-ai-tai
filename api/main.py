@@ -136,6 +136,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # outermost). BE-HARDEN fills these stubs with real behavior.
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestIDMiddleware)
+    # Opt-in Prometheus request metrics (no-op unless ENABLE_METRICS=true).
+    if settings.enable_metrics:
+        from api.middleware import MetricsMiddleware
+
+        app.add_middleware(MetricsMiddleware)
     _configure_cors(app, settings)
     _configure_rate_limiting(app, settings)
     _configure_error_handlers(app)
@@ -151,6 +156,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(curated_destinations_routes.router)
     if destinations_router is not None:
         app.include_router(destinations_router)
+    # Opt-in /metrics endpoint (registered only when ENABLE_METRICS=true).
+    if settings.enable_metrics:
+        from api.routes import metrics as metrics_routes
+
+        app.include_router(metrics_routes.router)
 
     _install_openapi_error_responses(app)
     _mount_spa(app)
