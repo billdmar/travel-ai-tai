@@ -19,6 +19,7 @@ const ResultsPage = lazy(() => import('./pages/ResultsPage'))
 const TripDetailsPage = lazy(() => import('./pages/TripDetailsPage'))
 const ItineraryPage = lazy(() => import('./pages/ItineraryPage'))
 const SavedItinerariesPage = lazy(() => import('./pages/SavedItinerariesPage'))
+const ComparePage = lazy(() => import('./pages/ComparePage'))
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'))
 const AboutPage = lazy(() => import('./pages/AboutPage'))
 const DisclosurePage = lazy(() => import('./pages/DisclosurePage'))
@@ -159,6 +160,7 @@ export default function App() {
                 <Route path="/plan/:destination" element={<TripDetailsPage />} />
                 <Route path="/itinerary/:id" element={<ItineraryPage />} />
                 <Route path="/saved" element={<SavedItinerariesPage />} />
+                <Route path="/compare" element={<ComparePage />} />
                 <Route path="/explore" element={<ExplorePage />} />
                 <Route path="/destination/:slug" element={<DestinationLandingPage />} />
                 <Route path="/share/:token" element={<SharePage />} />

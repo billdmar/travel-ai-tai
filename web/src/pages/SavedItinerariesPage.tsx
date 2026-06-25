@@ -9,6 +9,38 @@ import ErrorBanner from '../components/ErrorBanner'
 
 const PER_PAGE = 20
 
+// At most three trips compare cleanly side by side; fewer than two has nothing
+// to contrast. The Compare button is enabled only inside this range.
+const MIN_COMPARE = 2
+const MAX_COMPARE = 3
+
+// localStorage key for the persisted compare selection. Stored as a JSON array
+// of itinerary ids so the choice survives a reload without any backend — a fit
+// for the app's no-auth, single-session model.
+const COMPARE_KEY = 'tai.compareSelection'
+
+/** Read the persisted compare selection, tolerating absent/corrupt storage. */
+function readSelection(): string[] {
+  try {
+    const raw = localStorage.getItem(COMPARE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+/** Persist the compare selection; ignore storage failures (private mode, etc). */
+function writeSelection(ids: string[]): void {
+  try {
+    localStorage.setItem(COMPARE_KEY, JSON.stringify(ids))
+  } catch {
+    // Storage may be unavailable (private browsing, quota); selection still
+    // works in-memory for the current session.
+  }
+}
+
 interface SavedItinerariesPageProps {
   /** Optional legacy callback; when absent we route to /discover via the router. */
   onNavigateHome?: () => void
@@ -43,6 +75,9 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
   const [error, setError] = useState<unknown>(null)
   const [selected, setSelected] = useState<ItineraryResponse | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  // Ids picked for side-by-side comparison; seeded from localStorage so the
+  // choice survives a reload.
+  const [compareIds, setCompareIds] = useState<string[]>(() => readSelection())
 
   const load = useCallback(async (p: number) => {
     setLoading(true)
@@ -86,6 +121,26 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
     }
   }
 
+  // Toggle an id in the compare selection, capping at MAX_COMPARE, and persist.
+  function toggleCompare(id: string) {
+    setCompareIds((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : prev.length >= MAX_COMPARE
+          ? prev
+          : [...prev, id]
+      writeSelection(next)
+      return next
+    })
+  }
+
+  // Navigate to the comparison view with the selected ids as a query param so
+  // the page is shareable/refreshable without relying on router state.
+  function compare() {
+    if (compareIds.length < MIN_COMPARE) return
+    navigate(`/compare?ids=${compareIds.map(encodeURIComponent).join(',')}`)
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE))
 
   if (selected) {
@@ -123,6 +178,24 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
 
           {error != null && (
             <ErrorBanner error={error} onDismiss={() => setError(null)} onRetry={() => load(page)} />
+          )}
+
+          {!loading && items.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-line bg-canvas-raised px-5 py-3">
+              <p className="text-sm text-ink-soft">
+                {compareIds.length === 0
+                  ? `Select ${MIN_COMPARE}–${MAX_COMPARE} trips to compare.`
+                  : `${compareIds.length} selected (max ${MAX_COMPARE}).`}
+              </p>
+              <button
+                type="button"
+                onClick={compare}
+                disabled={compareIds.length < MIN_COMPARE}
+                className="rounded-full bg-accent-500 px-5 py-1.5 text-sm font-medium text-white transition-colors duration-hover hover:bg-accent-600 disabled:opacity-40 focus-visible:outline-none"
+              >
+                Compare
+              </button>
+            </div>
           )}
 
           {loading ? (
@@ -166,14 +239,24 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
                   index={i}
                   className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-ink-line bg-canvas-raised p-6 shadow-frame transition duration-hover ease-lux hover:-translate-y-0.5 hover:shadow-lift"
                 >
-                  <div>
-                    <p className="font-serif text-2xl font-medium leading-tight tracking-tight text-ink">
-                      {it.destination}
-                    </p>
-                    <p className="mt-1 text-sm text-ink-soft">
-                      {it.start_date} → {it.end_date} ·{' '}
-                      <span className="tabular-nums">{money(it.total_estimated_cost_usd)}</span>
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="checkbox"
+                      checked={compareIds.includes(it.id)}
+                      disabled={!compareIds.includes(it.id) && compareIds.length >= MAX_COMPARE}
+                      onChange={() => toggleCompare(it.id)}
+                      aria-label={`Select ${it.destination} to compare`}
+                      className="h-5 w-5 shrink-0 rounded border-ink-line text-accent-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 disabled:opacity-40"
+                    />
+                    <div>
+                      <p className="font-serif text-2xl font-medium leading-tight tracking-tight text-ink">
+                        {it.destination}
+                      </p>
+                      <p className="mt-1 text-sm text-ink-soft">
+                        {it.start_date} → {it.end_date} ·{' '}
+                        <span className="tabular-nums">{money(it.total_estimated_cost_usd)}</span>
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <button

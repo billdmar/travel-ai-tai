@@ -50,6 +50,7 @@ describe('SavedItinerariesPage', () => {
     getMock.mockReset()
     deleteMock.mockReset()
     navigateMock.mockReset()
+    localStorage.clear()
     stubImageFetch()
   })
   afterEach(() => vi.restoreAllMocks())
@@ -115,5 +116,65 @@ describe('SavedItinerariesPage', () => {
     listMock.mockRejectedValue(new ApiError(0, { error: 'network_error' }))
     renderPage()
     expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('selecting two trips enables Compare and navigates with their ids', async () => {
+    const user = userEvent.setup()
+    listMock.mockResolvedValue(
+      listWith([
+        makeListItem({ id: 'a', destination: 'Kyoto' }),
+        makeListItem({ id: 'b', destination: 'Lisbon' }),
+      ]),
+    )
+    renderPage()
+    await screen.findByText('Kyoto')
+
+    // Compare is disabled until at least two trips are selected.
+    const compareBtn = screen.getByRole('button', { name: 'Compare' })
+    expect(compareBtn).toBeDisabled()
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Kyoto to compare' }))
+    expect(compareBtn).toBeDisabled()
+    await user.click(screen.getByRole('checkbox', { name: 'Select Lisbon to compare' }))
+    expect(compareBtn).toBeEnabled()
+
+    await user.click(compareBtn)
+    expect(navigateMock).toHaveBeenCalledWith('/compare?ids=a,b')
+  })
+
+  it('caps the compare selection at three trips', async () => {
+    const user = userEvent.setup()
+    listMock.mockResolvedValue(
+      listWith([
+        makeListItem({ id: 'a', destination: 'Kyoto' }),
+        makeListItem({ id: 'b', destination: 'Lisbon' }),
+        makeListItem({ id: 'c', destination: 'Porto' }),
+        makeListItem({ id: 'd', destination: 'Oslo' }),
+      ]),
+    )
+    renderPage()
+    await screen.findByText('Kyoto')
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Kyoto to compare' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Lisbon to compare' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Select Porto to compare' }))
+    // Fourth checkbox is disabled once the cap is reached.
+    expect(screen.getByRole('checkbox', { name: 'Select Oslo to compare' })).toBeDisabled()
+  })
+
+  it('persists the compare selection to localStorage and restores it on reload', async () => {
+    const user = userEvent.setup()
+    listMock.mockResolvedValue(listWith([makeListItem({ id: 'a', destination: 'Kyoto' })]))
+    const { unmount } = renderPage()
+    await screen.findByText('Kyoto')
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Kyoto to compare' }))
+    expect(JSON.parse(localStorage.getItem('tai.compareSelection') ?? '[]')).toEqual(['a'])
+
+    // Re-mounting (a reload) restores the checkbox from localStorage.
+    unmount()
+    renderPage()
+    await screen.findByText('Kyoto')
+    expect(screen.getByRole('checkbox', { name: 'Select Kyoto to compare' })).toBeChecked()
   })
 })
