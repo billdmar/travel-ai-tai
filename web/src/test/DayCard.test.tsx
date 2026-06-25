@@ -77,4 +77,44 @@ describe('DayCard', () => {
     rerender(<DayCard day={makeDay()} />)
     expect(container.querySelector('[style*="width:"]')).toBeNull()
   })
+
+  it('shows no edit controls unless editing is true', () => {
+    stubImageFetch()
+    render(<DayCard day={makeDay()} defaultOpen />)
+    expect(
+      screen.queryByRole('button', { name: /Remove Fushimi Inari Shrine/ }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders keyboard-accessible reorder + remove buttons while editing', () => {
+    stubImageFetch()
+    render(<DayCard day={makeDay()} defaultOpen editing onReorder={vi.fn()} onRemove={vi.fn()} />)
+    // The two-activity default day: first row cannot move up, last cannot move down.
+    const upFirst = screen.getAllByRole('button', { name: /Move Fushimi Inari Shrine up/ })
+    expect(upFirst[0]).toBeDisabled()
+    const downLast = screen.getAllByRole('button', { name: /Move Nishiki Market down/ })
+    expect(downLast[0]).toBeDisabled()
+    expect(
+      screen.getAllByRole('button', { name: /Remove Fushimi Inari Shrine/ }).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('calls onRemove with the activity index', async () => {
+    stubImageFetch()
+    const user = userEvent.setup()
+    const onRemove = vi.fn()
+    render(<DayCard day={makeDay()} defaultOpen editing onRemove={onRemove} onReorder={vi.fn()} />)
+    // Click the first (mobile-layout) Remove button for the second activity.
+    await user.click(screen.getAllByRole('button', { name: /Remove Nishiki Market/ })[0])
+    expect(onRemove).toHaveBeenCalledWith(1)
+  })
+
+  it('calls onReorder to move an activity down', async () => {
+    stubImageFetch()
+    const user = userEvent.setup()
+    const onReorder = vi.fn()
+    render(<DayCard day={makeDay()} defaultOpen editing onReorder={onReorder} onRemove={vi.fn()} />)
+    await user.click(screen.getAllByRole('button', { name: /Move Fushimi Inari Shrine down/ })[0])
+    expect(onReorder).toHaveBeenCalledWith(0, 1)
+  })
 })

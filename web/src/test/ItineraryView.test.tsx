@@ -5,10 +5,12 @@ import { MemoryRouter } from 'react-router-dom'
 
 // Mock only the mutating client calls used directly by ItineraryView; image
 // fetches are swallowed by the real fetchImage (fallback) once fetch is stubbed.
-const { saveMock, exportMock, shareMock } = vi.hoisted(() => ({
+const { saveMock, exportMock, shareMock, removeMock, reorderMock } = vi.hoisted(() => ({
   saveMock: vi.fn(),
   exportMock: vi.fn(),
   shareMock: vi.fn(),
+  removeMock: vi.fn(),
+  reorderMock: vi.fn(),
 }))
 
 vi.mock('../api/client', async () => {
@@ -18,6 +20,8 @@ vi.mock('../api/client', async () => {
     saveItinerary: saveMock,
     exportItinerary: exportMock,
     createShareLink: shareMock,
+    removeDayActivity: removeMock,
+    reorderDayActivities: reorderMock,
   }
 })
 
@@ -36,6 +40,8 @@ function renderView(props: Partial<Parameters<typeof ItineraryView>[0]> = {}) {
 describe('ItineraryView', () => {
   beforeEach(() => {
     saveMock.mockReset()
+    removeMock.mockReset()
+    reorderMock.mockReset()
     stubImageFetch()
   })
   afterEach(() => vi.restoreAllMocks())
@@ -114,5 +120,58 @@ describe('ItineraryView', () => {
   it('hides the "Adjust trip" button in readOnly mode', () => {
     renderView({ onAdjust: vi.fn(), readOnly: true })
     expect(screen.queryByRole('button', { name: 'Adjust trip' })).not.toBeInTheDocument()
+  })
+
+  it('hides the Edit affordance in readOnly mode', () => {
+    renderView({ readOnly: true })
+    expect(screen.queryByRole('button', { name: /Edit activities/ })).not.toBeInTheDocument()
+  })
+
+  it('removes an activity: calls the API, updates the view optimistically', async () => {
+    const user = userEvent.setup()
+    // Server echoes the trip back with the activity gone (day 1 now has one).
+    const after = makeItinerary()
+    after.days[0].activities = [after.days[0].activities[0]]
+    removeMock.mockResolvedValue(after)
+    renderView()
+
+    // Day 1 is open by default; enter edit mode and remove "Nishiki Market".
+    await user.click(screen.getByRole('button', { name: /Edit activities/ }))
+    expect(screen.getAllByText('Nishiki Market').length).toBeGreaterThan(0)
+    await user.click(screen.getAllByRole('button', { name: /Remove Nishiki Market/ })[0])
+
+    // The new client function is called for day 1, index 1.
+    await waitFor(() => expect(removeMock).toHaveBeenCalledWith('it_test1', 1, 1))
+    // The removed activity disappears from the rendered day.
+    await waitFor(() =>
+      expect(screen.queryByText('Nishiki Market')).not.toBeInTheDocument(),
+    )
+  })
+
+  it('reverts the optimistic removal and shows an error banner on failure', async () => {
+    const user = userEvent.setup()
+    removeMock.mockRejectedValue(new ApiError(404, { error: 'itinerary_not_found' }))
+    renderView()
+
+    await user.click(screen.getByRole('button', { name: /Edit activities/ }))
+    await user.click(screen.getAllByRole('button', { name: /Remove Nishiki Market/ })[0])
+
+    // Error surfaces and the optimistically-removed activity comes back.
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getAllByText('Nishiki Market').length).toBeGreaterThan(0),
+    )
+  })
+
+  it('reorders activities via the up/down controls', async () => {
+    const user = userEvent.setup()
+    reorderMock.mockResolvedValue(makeItinerary())
+    renderView()
+    await user.click(screen.getByRole('button', { name: /Edit activities/ }))
+    // Move the first activity (index 0) down -> swap with index 1.
+    await user.click(screen.getAllByRole('button', { name: /Move Fushimi Inari Shrine down/ })[0])
+    await waitFor(() =>
+      expect(reorderMock).toHaveBeenCalledWith('it_test1', 1, [1, 0]),
+    )
   })
 })

@@ -115,6 +115,42 @@ export function saveItinerary(id: string): Promise<ItineraryResponse> {
   })
 }
 
+/**
+ * Reorder a day's activities in place without re-running the LLM. FROZEN
+ * contract: PUT /api/v1/itineraries/{id}/days/{dayNumber}/activities with body
+ * `{ order: number[] }`, where `order` is a permutation of the day's current
+ * activity indices. Returns the updated (re-normalized) ItineraryResponse; 404
+ * if the itinerary/day is missing or `order` is not a valid permutation.
+ */
+export function reorderDayActivities(
+  id: string,
+  dayNumber: number,
+  order: number[],
+): Promise<ItineraryResponse> {
+  return request<ItineraryResponse>(
+    `${BASE}/itineraries/${encodeURIComponent(id)}/days/${dayNumber}/activities`,
+    { method: 'PUT', body: JSON.stringify({ order }) },
+  )
+}
+
+/**
+ * Remove a single activity from a day in place without re-running the LLM.
+ * FROZEN contract: DELETE
+ * /api/v1/itineraries/{id}/days/{dayNumber}/activities/{activityIndex}.
+ * Returns the updated (re-normalized) ItineraryResponse with the grand total
+ * recomputed; 404 if the itinerary/day is missing or the index is out of range.
+ */
+export function removeDayActivity(
+  id: string,
+  dayNumber: number,
+  activityIndex: number,
+): Promise<ItineraryResponse> {
+  return request<ItineraryResponse>(
+    `${BASE}/itineraries/${encodeURIComponent(id)}/days/${dayNumber}/activities/${activityIndex}`,
+    { method: 'DELETE' },
+  )
+}
+
 export function deleteItinerary(id: string): Promise<void> {
   return request<void>(`${BASE}/itineraries/${encodeURIComponent(id)}`, {
     method: 'DELETE',
