@@ -15,7 +15,11 @@ export default {
           DEFAULT: '#2b2a28',
           soft: '#55524d', // secondary text
           faint: '#8a857d', // captions, credits
-          line: '#e7e2d9', // hairline borders
+          // Hairline borders. Darkened from #e7e2d9 (only ~1.22:1 vs canvas) to
+          // a warm-neutral that clears WCAG 1.4.11 for UI-component boundaries:
+          // 3.11:1 vs canvas #faf8f4 and 3.30:1 vs raised white cards. Sits just
+          // above ink.faint on the same warm ramp so hairlines stay soft.
+          line: '#928d85',
         },
         // The ONE accent: a muted blue-green. Tints/shades only.
         accent: {
