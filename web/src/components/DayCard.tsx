@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import type { Activity, ActivityCategory, ItineraryDay } from '../types/itinerary'
 import { money } from '../lib/format'
 import { DestinationImage } from './DestinationImage'
+import { usePrefersReducedMotion } from './ui'
+import { durationSeconds, easeLux } from './ui/motionTokens'
 
 interface DayCardProps {
   day: ItineraryDay
@@ -235,6 +238,7 @@ export default function DayCard({
   onRemove,
 }: DayCardProps) {
   const [open, setOpen] = useState(defaultOpen)
+  const reduced = usePrefersReducedMotion()
   const activityCount = day.activities.length
 
   // The sm+ activity table scrolls horizontally on medium viewports; surface a
@@ -244,6 +248,140 @@ export default function DayCard({
 
   const dayTotal = day.activities.reduce((sum, a) => sum + a.estimated_cost_usd, 0)
   const sharePct = grandTotal && grandTotal > 0 ? (dayTotal / grandTotal) * 100 : 0
+
+  // The expanded panel body. Extracted so the reduced-motion (instant) branch
+  // and the animated branch render byte-identical content — the only difference
+  // between them is the wrapper that does (or doesn't) animate the reveal.
+  const panelBody = (
+    <div className="border-t border-ink-line px-3 py-3 sm:px-5">
+      {/* Mobile: stacked cards */}
+      <ul className="space-y-3 sm:hidden">
+        {day.activities.map((a, i) => (
+          <li key={i} className="rounded-xl border border-ink-line p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-ink-soft">{a.time}</span>
+              <span className="text-sm font-semibold tabular-nums text-ink">
+                {money(a.estimated_cost_usd)}
+              </span>
+            </div>
+            <ActivityThumb activity={a} destination={destination} className="mt-2" />
+            <p className="mt-2 font-medium text-ink">{a.place}</p>
+            <p className="text-xs leading-relaxed text-ink-soft">{a.description}</p>
+            <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+              <CategoryChip category={a.category} />
+              <div className="flex items-center gap-1.5">
+                <MapLink activity={a} />
+                <BookLink activity={a} />
+              </div>
+            </div>
+            {editing && (
+              <div className="mt-2.5 flex justify-end border-t border-ink-line pt-2.5">
+                <ActivityEditControls
+                  index={i}
+                  count={activityCount}
+                  place={a.place}
+                  onReorder={onReorder}
+                  onRemove={onRemove}
+                />
+              </div>
+            )}
+          </li>
+        ))}
+        <li className="flex items-center justify-between rounded-xl bg-canvas-sunken px-3 py-2.5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            Day subtotal
+          </span>
+          <span className="text-sm font-bold tabular-nums text-ink">{money(dayTotal)}</span>
+        </li>
+      </ul>
+
+      {/* sm+ : table */}
+      <div ref={tableScrollRef} className="hidden overflow-x-auto sm:block">
+        {tableOverflowing && (
+          <p
+            role="status"
+            className="mb-1.5 hidden text-right text-[11px] font-medium text-ink-faint sm:block"
+          >
+            Scroll for links &rarr;
+          </p>
+        )}
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">
+              <th className="px-3 py-2 font-medium">Time</th>
+              <th className="px-3 py-2 font-medium">Place</th>
+              <th className="px-3 py-2 font-medium">Category</th>
+              <th className="px-3 py-2 text-right font-medium">Est. cost</th>
+              <th className="px-3 py-2 font-medium">Links</th>
+              {editing && <th className="px-3 py-2 text-right font-medium">Edit</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {day.activities.map((a, i) => (
+              <tr key={i} className="border-t border-ink-line align-top">
+                <td className="whitespace-nowrap px-3 py-3.5 font-medium text-ink-soft">
+                  {a.time}
+                </td>
+                <td className="px-3 py-3.5">
+                  <div className="flex gap-3">
+                    <ActivityThumb
+                      activity={a}
+                      destination={destination}
+                      className="w-20 shrink-0"
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium text-ink">{a.place}</p>
+                      <p className="text-xs leading-relaxed text-ink-soft">{a.description}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-3 py-3.5">
+                  <CategoryChip category={a.category} />
+                </td>
+                <td className="whitespace-nowrap px-3 py-3.5 text-right text-sm tabular-nums text-ink-soft">
+                  {money(a.estimated_cost_usd)}
+                </td>
+                <td className="whitespace-nowrap px-3 py-3.5">
+                  <div className="flex items-center gap-1.5">
+                    <MapLink activity={a} />
+                    <BookLink activity={a} />
+                  </div>
+                </td>
+                {editing && (
+                  <td className="whitespace-nowrap px-3 py-3.5">
+                    <div className="flex justify-end">
+                      <ActivityEditControls
+                        index={i}
+                        count={activityCount}
+                        place={a.place}
+                        onReorder={onReorder}
+                        onRemove={onRemove}
+                      />
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-ink-line bg-canvas-sunken/60">
+              <td
+                colSpan={3}
+                className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-faint"
+              >
+                Day subtotal
+              </td>
+              <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-ink">
+                {money(dayTotal)}
+              </td>
+              <td />
+              {editing && <td />}
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  )
 
   return (
     <div className="overflow-hidden rounded-2xl border border-ink-line bg-canvas-raised shadow-frame transition duration-hover ease-lux hover:shadow-lift">
@@ -290,144 +428,31 @@ export default function DayCard({
         </div>
       )}
 
-      {open && (
-        <div className="border-t border-ink-line px-3 py-3 sm:px-5">
-          {/* Mobile: stacked cards */}
-          <ul className="space-y-3 sm:hidden">
-            {day.activities.map((a, i) => (
-              <li key={i} className="rounded-xl border border-ink-line p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-ink-soft">{a.time}</span>
-                  <span className="text-sm font-semibold tabular-nums text-ink">
-                    {money(a.estimated_cost_usd)}
-                  </span>
-                </div>
-                <ActivityThumb
-                  activity={a}
-                  destination={destination}
-                  className="mt-2"
-                />
-                <p className="mt-2 font-medium text-ink">{a.place}</p>
-                <p className="text-xs leading-relaxed text-ink-soft">{a.description}</p>
-                <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-                  <CategoryChip category={a.category} />
-                  <div className="flex items-center gap-1.5">
-                    <MapLink activity={a} />
-                    <BookLink activity={a} />
-                  </div>
-                </div>
-                {editing && (
-                  <div className="mt-2.5 flex justify-end border-t border-ink-line pt-2.5">
-                    <ActivityEditControls
-                      index={i}
-                      count={activityCount}
-                      place={a.place}
-                      onReorder={onReorder}
-                      onRemove={onRemove}
-                    />
-                  </div>
-                )}
-              </li>
-            ))}
-            <li className="flex items-center justify-between rounded-xl bg-canvas-sunken px-3 py-2.5">
-              <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
-                Day subtotal
-              </span>
-              <span className="text-sm font-bold tabular-nums text-ink">
-                {money(dayTotal)}
-              </span>
-            </li>
-          </ul>
-
-          {/* sm+ : table */}
-          <div ref={tableScrollRef} className="hidden overflow-x-auto sm:block">
-            {tableOverflowing && (
-              <p
-                role="status"
-                className="mb-1.5 hidden text-right text-[11px] font-medium text-ink-faint sm:block"
-              >
-                Scroll for links &rarr;
-              </p>
-            )}
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">
-                  <th className="px-3 py-2 font-medium">Time</th>
-                  <th className="px-3 py-2 font-medium">Place</th>
-                  <th className="px-3 py-2 font-medium">Category</th>
-                  <th className="px-3 py-2 text-right font-medium">Est. cost</th>
-                  <th className="px-3 py-2 font-medium">Links</th>
-                  {editing && (
-                    <th className="px-3 py-2 text-right font-medium">Edit</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {day.activities.map((a, i) => (
-                  <tr key={i} className="border-t border-ink-line align-top">
-                    <td className="whitespace-nowrap px-3 py-3.5 font-medium text-ink-soft">
-                      {a.time}
-                    </td>
-                    <td className="px-3 py-3.5">
-                      <div className="flex gap-3">
-                        <ActivityThumb
-                          activity={a}
-                          destination={destination}
-                          className="w-20 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <p className="font-medium text-ink">{a.place}</p>
-                          <p className="text-xs leading-relaxed text-ink-soft">{a.description}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3.5">
-                      <CategoryChip category={a.category} />
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3.5 text-right text-sm tabular-nums text-ink-soft">
-                      {money(a.estimated_cost_usd)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-3.5">
-                      <div className="flex items-center gap-1.5">
-                        <MapLink activity={a} />
-                        <BookLink activity={a} />
-                      </div>
-                    </td>
-                    {editing && (
-                      <td className="whitespace-nowrap px-3 py-3.5">
-                        <div className="flex justify-end">
-                          <ActivityEditControls
-                            index={i}
-                            count={activityCount}
-                            place={a.place}
-                            onReorder={onReorder}
-                            onRemove={onRemove}
-                          />
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-ink-line bg-canvas-sunken/60">
-                  <td
-                    colSpan={3}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-ink-faint"
-                  >
-                    Day subtotal
-                  </td>
-                  <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-ink">
-                    {money(dayTotal)}
-                  </td>
-                  <td />
-                  {editing && <td />}
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      )}
+      {/*
+       * Reduced-motion: keep the original instant mount/unmount verbatim — no
+       * AnimatePresence, no height animation. Otherwise animate the panel open
+       * and closed by tweening height (0 -> auto) and opacity, clipping with
+       * overflow-hidden so the table never spills during the reveal. Durations
+       * and easing come from the shared motion tokens, never hard-coded.
+       */}
+      {reduced
+        ? open && panelBody
+        : (
+            <AnimatePresence initial={false}>
+              {open && (
+                <motion.div
+                  key="panel"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: durationSeconds('reveal'), ease: easeLux() }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  {panelBody}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
     </div>
   )
 }

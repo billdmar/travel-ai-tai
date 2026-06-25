@@ -4,6 +4,21 @@ import userEvent from '@testing-library/user-event'
 import DayCard from '../components/DayCard'
 import { makeActivity, makeDay, stubImageFetch } from './fixtures'
 
+/** Force the prefers-reduced-motion media query to a given value. */
+function setReducedMotion(reduced: boolean) {
+  window.matchMedia = ((query: string) =>
+    ({
+      matches: reduced && query.includes('reduce'),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList) as typeof window.matchMedia
+}
+
 describe('DayCard', () => {
   afterEach(() => vi.restoreAllMocks())
 
@@ -116,6 +131,29 @@ describe('DayCard', () => {
     render(<DayCard day={makeDay()} defaultOpen editing onReorder={onReorder} onRemove={vi.fn()} />)
     await user.click(screen.getAllByRole('button', { name: /Move Fushimi Inari Shrine down/ })[0])
     expect(onReorder).toHaveBeenCalledWith(0, 1)
+  })
+
+  it('toggles the panel instantly with no height animation under reduced motion', async () => {
+    setReducedMotion(true)
+    stubImageFetch()
+    const user = userEvent.setup()
+    const { container } = render(<DayCard day={makeDay()} />)
+
+    // Collapsed: the activities are not in the DOM at all.
+    expect(screen.queryByText('Fushimi Inari Shrine')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Temples & tea/ }))
+
+    // Expanded instantly: content present, and the reduced-motion branch mounts
+    // the bare panel with no AnimatePresence wrapper — so no inline height /
+    // overflow:hidden animation style is applied anywhere in the subtree.
+    expect(screen.getAllByText('Fushimi Inari Shrine').length).toBeGreaterThan(0)
+    expect(container.querySelector('[style*="height"]')).toBeNull()
+    expect(container.querySelector('[style*="overflow: hidden"]')).toBeNull()
+
+    // Collapse is equally instant — the panel unmounts immediately.
+    await user.click(screen.getByRole('button', { name: /Temples & tea/ }))
+    expect(screen.queryByText('Fushimi Inari Shrine')).not.toBeInTheDocument()
   })
 
   it('omits the horizontal-scroll hint when the activity table fits', () => {
