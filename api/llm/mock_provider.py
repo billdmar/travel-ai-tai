@@ -18,6 +18,7 @@ import hashlib
 import json
 import re
 from datetime import date, timedelta
+from typing import Any
 
 from api.llm.provider import LLMProvider, LLMResult
 
@@ -90,7 +91,7 @@ def build_mock_itinerary(
         # map demo shows distinct, clustered points.
         day_lat = round(base_lat + i * 0.01, 4)
         day_lng = round(base_lng + i * 0.01, 4)
-        activities = [
+        activities: list[dict[str, Any]] = [
             {
                 "time": "09:00",
                 "place": sight,

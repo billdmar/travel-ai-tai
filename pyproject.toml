@@ -18,3 +18,11 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I"]
 # B008 (Depends() in defaults) is the idiomatic FastAPI pattern; not enabled.
+
+[tool.mypy]
+python_version = "3.11"
+# Optional third-party deps that ship no type stubs (cachetools, the langchain
+# providers — the latter imported lazily and only when LLM_PROVIDER=langchain).
+# Silencing missing-import noise keeps the scoped, blocking type-check signal
+# focused on our own code rather than untyped upstream packages.
+ignore_missing_imports = true
