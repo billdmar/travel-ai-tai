@@ -155,12 +155,12 @@ export async function fetchImage(query: string): Promise<ImageResult> {
 
 /**
  * Download an itinerary as a file. FROZEN contract:
- * GET /api/v1/itineraries/{id}/export?format=markdown|pdf -> file download.
+ * GET /api/v1/itineraries/{id}/export?format=markdown|pdf|ics -> file download.
  * Returns the raw Blob so callers can trigger a browser download.
  */
 export async function exportItinerary(
   id: string,
-  format: 'markdown' | 'pdf',
+  format: 'markdown' | 'pdf' | 'ics',
 ): Promise<Blob> {
   const qs = new URLSearchParams({ format })
   let res: Response

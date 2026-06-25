@@ -11,11 +11,16 @@ Renders a fully-assembled :class:`~api.models.ItineraryResponse` to two formats:
   :func:`render_pdf`; if it is not installed, :class:`PDFExportUnavailable` is
   raised so the route can return a clean 503 rather than crashing the app at
   import time. The Markdown path never imports it.
+* **ICS** — an RFC 5545 VCALENDAR with one VEVENT per activity, hand-rolled
+  from stdlib only (no calendar library) so it is always available. Each event
+  is anchored to its day's date; since activities carry a wall-clock time but no
+  timezone, events are emitted as date-based (all-day, ``VALUE=DATE``) so they
+  land on the correct day in any calendar without a TZID guess.
 """
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from api.models import Activity, ItineraryDay, ItineraryResponse
 
@@ -201,3 +206,159 @@ def render_pdf(itinerary: ItineraryResponse) -> bytes:
 
     # fpdf2 returns a bytearray from .output(); normalize to immutable bytes.
     return bytes(pdf.output())
+
+
+# ── ICS (RFC 5545) ───────────────────────────────────────────────────────────
+
+# Calendar tools split on CRLF (the spec-mandated line terminator) and unfold
+# any line that begins with whitespace into the previous one.
+_CRLF = "\r\n"
+#: Stable namespace for per-event UIDs so re-exporting the same trip yields the
+#: same UIDs (calendars dedupe / update on UID rather than duplicating events).
+_UID_DOMAIN = "travel-ai.tai"
+
+
+def _escape_ics(text: str) -> str:
+    """Escape a value for an ICS TEXT field per RFC 5545 §3.3.11.
+
+    Backslash, comma, and semicolon are escaped, and any newline becomes the
+    literal two-character sequence ``\\n``. Order matters: the backslash is
+    escaped first so the escapes we add are not themselves re-escaped.
+    """
+    return (
+        text.replace("\\", "\\\\")
+        .replace(",", "\\,")
+        .replace(";", "\\;")
+        .replace("\r\n", "\\n")
+        .replace("\n", "\\n")
+        .replace("\r", "\\n")
+    )
+
+
+def _fold_line(line: str) -> str:
+    """Fold a content line to <=75 octets per RFC 5545 §3.1.
+
+    Continuation lines are prefixed with a single space; folding is done on a
+    byte boundary (UTF-8) so a multi-byte character is never split across lines.
+    """
+    encoded = line.encode("utf-8")
+    if len(encoded) <= 75:
+        return line
+    chunks: list[bytes] = []
+    # First line gets 75 octets; each continuation reserves 1 octet for the
+    # leading space, so 74 octets of payload.
+    chunks.append(encoded[:75])
+    rest = encoded[75:]
+    while rest:
+        chunks.append(rest[:74])
+        rest = rest[74:]
+    # Decode each chunk on its byte boundary. ``errors="ignore"`` would drop a
+    # split code point, but we only ever cut on a 75/74-octet boundary that may
+    # land mid-character, so glue back any trailing partial bytes to the next
+    # chunk instead of slicing blindly.
+    return _decode_chunks(chunks)
+
+
+def _decode_chunks(chunks: list[bytes]) -> str:
+    """Decode UTF-8 byte chunks, repairing splits across chunk boundaries."""
+    out: list[str] = []
+    carry = b""
+    for i, chunk in enumerate(chunks):
+        data = carry + chunk
+        # Trim trailing bytes that form an incomplete UTF-8 sequence and carry
+        # them to the next chunk so we never decode a partial code point.
+        while data:
+            try:
+                text = data.decode("utf-8")
+                carry = b""
+                break
+            except UnicodeDecodeError:
+                carry = data[-1:] + carry
+                data = data[:-1]
+        else:
+            text = ""
+        prefix = "" if i == 0 else " "
+        out.append(prefix + text)
+    return _CRLF.join(out)
+
+
+def _ics_dtstamp(value: datetime) -> str:
+    """Format a UTC timestamp as an RFC 5545 DATE-TIME (``20260701T000000Z``)."""
+    return value.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _ics_date(value: date) -> str:
+    """Format a calendar date as an RFC 5545 DATE (``20260701``)."""
+    return value.strftime("%Y%m%d")
+
+
+def _activity_vevent(
+    activity: Activity,
+    day: ItineraryDay,
+    index: int,
+    destination: str,
+    dtstamp: str,
+) -> list[str]:
+    """Render one activity as the content lines of a VEVENT.
+
+    The event is date-based (all-day): DTSTART is the day's date and DTEND is
+    the next day, the inclusive→exclusive convention RFC 5545 requires for
+    ``VALUE=DATE`` events. The activity's wall-clock ``time`` is preserved in
+    the SUMMARY so the schedule is still legible inside the day.
+    """
+    uid = f"{day.date.isoformat()}-{day.day_number}-{index}@{_UID_DOMAIN}"
+    summary = f"{activity.time} {activity.place}"
+    description_parts = [activity.description]
+    if activity.booking_url:
+        description_parts.append(f"Book: {activity.booking_url}")
+    description_parts.append(f"Map: {activity.map_url}")
+    description = "\n".join(description_parts)
+
+    return [
+        "BEGIN:VEVENT",
+        f"UID:{_escape_ics(uid)}",
+        f"DTSTAMP:{dtstamp}",
+        f"DTSTART;VALUE=DATE:{_ics_date(day.date)}",
+        f"DTEND;VALUE=DATE:{_ics_date(date.fromordinal(day.date.toordinal() + 1))}",
+        f"SUMMARY:{_escape_ics(summary)}",
+        f"DESCRIPTION:{_escape_ics(description)}",
+        f"LOCATION:{_escape_ics(f'{activity.place}, {destination}')}",
+        f"CATEGORIES:{_escape_ics(activity.category)}",
+        "END:VEVENT",
+    ]
+
+
+def render_ics(itinerary: ItineraryResponse) -> str:
+    """Render an :class:`ItineraryResponse` to an RFC 5545 VCALENDAR string.
+
+    Emits one VEVENT per activity (date-based all-day events anchored to each
+    day), with a stable per-event UID, DTSTAMP, SUMMARY, DESCRIPTION, LOCATION,
+    and CATEGORIES. Output uses CRLF line endings and 75-octet line folding so
+    it imports cleanly into Apple Calendar / Google Calendar / Outlook.
+
+    Pure stdlib — no calendar dependency — so it is always available (unlike the
+    optional PDF path).
+    """
+    destination = itinerary.preferences.destination
+    # A single DTSTAMP (export time) for every event is valid and keeps a
+    # re-export byte-stable except for this field.
+    dtstamp = _ics_dtstamp(datetime.now(tz=timezone.utc))
+
+    lines: list[str] = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        f"PRODID:-//{_UID_DOMAIN}//Travel AI//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        f"X-WR-CALNAME:{_escape_ics(destination)}",
+    ]
+    for day in itinerary.days:
+        for index, activity in enumerate(day.activities):
+            lines.extend(
+                _activity_vevent(activity, day, index, destination, dtstamp)
+            )
+    lines.append("END:VCALENDAR")
+
+    # Fold every content line, then join with CRLF and terminate with a final
+    # CRLF (RFC 5545 requires each line, including the last, to end in CRLF).
+    return _CRLF.join(_fold_line(line) for line in lines) + _CRLF

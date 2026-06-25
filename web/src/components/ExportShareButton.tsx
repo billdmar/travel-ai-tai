@@ -6,7 +6,14 @@ interface ExportShareButtonProps {
   itineraryId: string
 }
 
-type Busy = 'markdown' | 'pdf' | 'share' | null
+type Busy = 'markdown' | 'pdf' | 'ics' | 'share' | null
+
+// File extension per export format (the ICS calendar mirrors markdown/pdf).
+const EXPORT_EXT: Record<'markdown' | 'pdf' | 'ics', string> = {
+  markdown: 'md',
+  pdf: 'pdf',
+  ics: 'ics',
+}
 
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -43,14 +50,13 @@ export default function ExportShareButton({ itineraryId }: ExportShareButtonProp
     toastTimer.current = setTimeout(() => setToast(null), 5000)
   }
 
-  async function handleExport(format: 'markdown' | 'pdf') {
+  async function handleExport(format: 'markdown' | 'pdf' | 'ics') {
     if (busy) return
     setError(null)
     setBusy(format)
     try {
       const blob = await exportItinerary(itineraryId, format)
-      const ext = format === 'markdown' ? 'md' : 'pdf'
-      triggerDownload(blob, `itinerary-${itineraryId}.${ext}`)
+      triggerDownload(blob, `itinerary-${itineraryId}.${EXPORT_EXT[format]}`)
     } catch (err) {
       setError(err)
     } finally {
@@ -135,6 +141,30 @@ export default function ExportShareButton({ itineraryId }: ExportShareButtonProp
             />
           </svg>
           {busy === 'pdf' ? 'Exporting…' : 'PDF'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleExport('ics')}
+          disabled={busy !== null}
+          aria-busy={busy === 'ics'}
+          className={baseBtn}
+        >
+          <svg
+            aria-hidden="true"
+            className="h-4 w-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.8}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"
+            />
+          </svg>
+          {busy === 'ics' ? 'Exporting…' : 'Add to calendar (.ics)'}
         </button>
 
         <button

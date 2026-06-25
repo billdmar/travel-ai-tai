@@ -33,10 +33,13 @@ describe('ExportShareButton', () => {
   })
   afterEach(() => vi.restoreAllMocks())
 
-  it('renders the three controls', () => {
+  it('renders the export and share controls', () => {
     render(<ExportShareButton itineraryId="it_1" />)
     expect(screen.getByRole('button', { name: 'Markdown' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'PDF' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Add to calendar/ }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Share link/ })).toBeInTheDocument()
   })
 
@@ -57,6 +60,21 @@ describe('ExportShareButton', () => {
     render(<ExportShareButton itineraryId="it_7" />)
     await user.click(screen.getByRole('button', { name: 'PDF' }))
     await waitFor(() => expect(exportMock).toHaveBeenCalledWith('it_7', 'pdf'))
+  })
+
+  it('requests an ics export and triggers a .ics download', async () => {
+    const user = userEvent.setup()
+    exportMock.mockResolvedValue(new Blob(['BEGIN:VCALENDAR']))
+    const downloads: string[] = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      downloads.push(this.download)
+    })
+    render(<ExportShareButton itineraryId="it_5" />)
+    await user.click(screen.getByRole('button', { name: /Add to calendar/ }))
+    await waitFor(() => expect(exportMock).toHaveBeenCalledWith('it_5', 'ics'))
+    expect(downloads).toEqual(['itinerary-it_5.ics'])
   })
 
   it('creates a share link and copies the /share URL to the clipboard', async () => {
