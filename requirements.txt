@@ -19,11 +19,11 @@ alembic>=1.13,<2
 openai>=1.0,<2
 python-dotenv>=1.0,<2
 # Gemini SDK — required in the prod image so the live site can run
-# LLM_PROVIDER=gemini. Its heavy deps (grpcio, protobuf) ship prebuilt
-# manylinux wheels for python:3.11-slim, so no compiler toolchain is needed;
-# the gemini provider still imports it lazily so the mock path never loads it.
-# NOTE: google-generativeai is EOL — migrate to the `google-genai` package later.
-google-generativeai>=0.8,<0.9
+# LLM_PROVIDER=gemini. The supported `google-genai` package (replaces the EOL
+# `google-generativeai` SDK). Its deps (httpx, google-auth, protobuf) ship
+# prebuilt wheels for python:3.11-slim, so no compiler toolchain is needed; the
+# gemini provider still imports it lazily so the mock path never loads it.
+google-genai>=1.0,<2
 
 # Optional cache backend (graceful fallback to in-memory if unreachable).
 redis>=5.0,<6
