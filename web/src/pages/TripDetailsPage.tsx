@@ -1,8 +1,19 @@
 import { useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ApiError, createItinerary } from '../api/client'
+import { ApiError, createItinerary, regenerateItinerary } from '../api/client'
 import type { PlanLocationState } from '../types/discovery'
 import type { Pace, TravelPreferences, TravelStyle } from '../types/itinerary'
+
+/**
+ * Router state for "Adjust trip": the source trip's id plus its current
+ * preferences. When present the form pre-fills from these prefs and submitting
+ * calls ``regenerateItinerary`` (a new trip from the source) instead of
+ * ``createItinerary``. Carried alongside {@link PlanLocationState}, so a caller
+ * (e.g. the itinerary view) opens ``/plan/:destination`` with ``{ adjust }``.
+ */
+interface AdjustLocationState {
+  adjust?: { sourceId: string; preferences: TravelPreferences }
+}
 import {
   Button,
   Container,
@@ -40,21 +51,27 @@ export default function TripDetailsPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const params = useParams()
-  const state = location.state as PlanLocationState | null
+  const state = location.state as (PlanLocationState & AdjustLocationState) | null
+
+  // In adjust mode the source trip's preferences seed every field, so the user
+  // tweaks a known starting point rather than a blank form.
+  const adjust = state?.adjust ?? null
+  const seed = adjust?.preferences ?? null
 
   const destination =
+    seed?.destination ??
     state?.recommendation?.name ??
     (params.destination ? decodeURIComponent(params.destination) : '')
-  const interests = state?.hobbies ?? []
+  const interests = seed?.interests ?? state?.hobbies ?? []
 
   const initialDates = defaultDates()
-  const [startDate, setStartDate] = useState(initialDates.start)
-  const [endDate, setEndDate] = useState(initialDates.end)
-  const [budget, setBudget] = useState(1500)
-  const [groupSize, setGroupSize] = useState(2)
-  const [pace, setPace] = useState<Pace>('moderate')
-  const [style, setStyle] = useState<TravelStyle>('midrange')
-  const [notes, setNotes] = useState('')
+  const [startDate, setStartDate] = useState(seed?.start_date ?? initialDates.start)
+  const [endDate, setEndDate] = useState(seed?.end_date ?? initialDates.end)
+  const [budget, setBudget] = useState(seed?.budget_usd ?? 1500)
+  const [groupSize, setGroupSize] = useState(seed?.group_size ?? 2)
+  const [pace, setPace] = useState<Pace>(seed?.pace ?? 'moderate')
+  const [style, setStyle] = useState<TravelStyle>(seed?.travel_style ?? 'midrange')
+  const [notes, setNotes] = useState(seed?.notes ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,13 +90,17 @@ export default function TripDetailsPage() {
       interests,
       pace,
       travel_style: style,
-      dietary_needs: [],
-      accessibility_needs: [],
+      // Carry dietary/accessibility needs through an adjust (the form has no
+      // controls for them); fresh plans start empty as before.
+      dietary_needs: seed?.dietary_needs ?? [],
+      accessibility_needs: seed?.accessibility_needs ?? [],
       group_size: groupSize,
       notes: notes.trim() || null,
     }
     try {
-      const itinerary = await createItinerary(prefs)
+      const itinerary = adjust
+        ? await regenerateItinerary(adjust.sourceId, prefs)
+        : await createItinerary(prefs)
       navigate(`/itinerary/${encodeURIComponent(itinerary.id)}`)
     } catch (err) {
       if (err instanceof ApiError && err.status === 429) {
@@ -113,7 +134,8 @@ export default function TripDetailsPage() {
             className="mt-4 font-serif text-5xl font-medium leading-[1.05] tracking-tight text-ink sm:text-6xl"
             style={variableSerif(560)}
           >
-            Your trip to {destination || 'somewhere wonderful'}
+            {adjust ? 'Adjust your trip to ' : 'Your trip to '}
+            {destination || 'somewhere wonderful'}
           </h1>
           {interests.length > 0 ? (
             <p className="mt-4 text-ink-soft">
@@ -223,7 +245,11 @@ export default function TripDetailsPage() {
         <Reveal index={2}>
           <div className="mt-8">
             <Button onClick={handleSubmit} size="lg" disabled={!canSubmit}>
-              {loading ? 'Building your itinerary…' : 'Build my itinerary →'}
+              {loading
+                ? 'Building your itinerary…'
+                : adjust
+                  ? 'Regenerate my trip →'
+                  : 'Build my itinerary →'}
             </Button>
           </div>
         </Reveal>

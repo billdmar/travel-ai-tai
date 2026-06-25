@@ -3,14 +3,15 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
-const { createMock, navigateMock } = vi.hoisted(() => ({
+const { createMock, regenerateMock, navigateMock } = vi.hoisted(() => ({
   createMock: vi.fn(),
+  regenerateMock: vi.fn(),
   navigateMock: vi.fn(),
 }))
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
-  return { ...actual, createItinerary: createMock }
+  return { ...actual, createItinerary: createMock, regenerateItinerary: regenerateMock }
 })
 
 vi.mock('react-router-dom', async () => {
@@ -20,7 +21,7 @@ vi.mock('react-router-dom', async () => {
 
 import TripDetailsPage from '../pages/TripDetailsPage'
 import { ApiError } from '../api/client'
-import { makeItinerary, makeRecommendation } from './fixtures'
+import { makeItinerary, makePreferences, makeRecommendation } from './fixtures'
 
 /** Render at /plan/:destination with optional router location state. */
 function renderPage(state?: unknown) {
@@ -36,6 +37,7 @@ function renderPage(state?: unknown) {
 describe('TripDetailsPage', () => {
   beforeEach(() => {
     createMock.mockReset()
+    regenerateMock.mockReset()
     navigateMock.mockReset()
   })
   afterEach(() => vi.restoreAllMocks())
@@ -112,5 +114,44 @@ describe('TripDetailsPage', () => {
     renderPage()
     await user.click(screen.getByRole('button', { name: /Build my itinerary/ }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/briefly unavailable/i)
+  })
+
+  it('in adjust mode pre-fills from the source prefs and regenerates', async () => {
+    const user = userEvent.setup()
+    regenerateMock.mockResolvedValue(makeItinerary({ id: 'it_regen' }))
+    const preferences = makePreferences({
+      destination: 'Lisbon',
+      budget_usd: 4200,
+      group_size: 5,
+      travel_style: 'luxury',
+    })
+    renderPage({ adjust: { sourceId: 'src_1', preferences } })
+
+    // Heading + button switch to the adjust affordance, seeded from the source.
+    expect(
+      screen.getByRole('heading', { name: /Adjust your trip to Lisbon/ }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/\$4,200 USD/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Luxury' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    await user.click(screen.getByRole('button', { name: /Regenerate my trip/ }))
+
+    await waitFor(() => expect(regenerateMock).toHaveBeenCalledOnce())
+    expect(createMock).not.toHaveBeenCalled()
+    const [sourceId, payload] = regenerateMock.mock.calls[0]
+    expect(sourceId).toBe('src_1')
+    // Seeded prefs (incl. dietary/accessibility carried through) flow back out.
+    expect(payload).toMatchObject({
+      destination: 'Lisbon',
+      budget_usd: 4200,
+      group_size: 5,
+      travel_style: 'luxury',
+    })
+    await waitFor(() =>
+      expect(navigateMock).toHaveBeenCalledWith('/itinerary/it_regen'),
+    )
   })
 })

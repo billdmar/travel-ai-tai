@@ -79,6 +79,57 @@ async def create_itinerary(
     return itinerary
 
 
+@router.post(
+    "/itineraries/{itinerary_id}/regenerate",
+    response_model=ItineraryResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit)],
+)
+async def regenerate_itinerary(
+    itinerary_id: UUID,
+    request: Request,
+    preferences: TravelPreferences,
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+) -> ItineraryResponse:
+    """Regenerate a trip from adjusted preferences, starting from an existing one.
+
+    The ``{itinerary_id}`` anchors the request to a real source trip (404 if it
+    is missing or soft-deleted) so the UI's "Adjust trip" affordance always
+    starts from something the user is looking at. The ``preferences`` body is the
+    *adjusted* preference set; this generates a brand-new itinerary (new id) via
+    the same :meth:`RecommendationEngine.generate` path as ``POST /itineraries``
+    and does NOT mutate the source row — the original trip is left intact.
+
+    Carries the same write rate limit and the same error mapping (503/502) and
+    ``X-LLM-Fallback`` surfacing as creation, since it shares the engine path.
+    """
+    source = await session.get(ItineraryRecord, str(itinerary_id))
+    if source is None or source.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "itinerary_not_found"},
+        )
+
+    engine = _engine(request)
+    try:
+        itinerary = await engine.generate(preferences, session)
+    except LLMUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error": "llm_unavailable"},
+            headers={"Retry-After": "60"},
+        ) from exc
+    except ItineraryParseError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"error": "itinerary_parse_failed"},
+        ) from exc
+    if itinerary.fallback_reason is not None:
+        response.headers["X-LLM-Fallback"] = itinerary.fallback_reason
+    return itinerary
+
+
 @router.get(
     "/itineraries/{itinerary_id}",
     response_model=ItineraryResponse,
