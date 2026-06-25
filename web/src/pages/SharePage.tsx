@@ -2,10 +2,17 @@ import { useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getSharedItinerary } from '../api/client'
 import { useItinerary } from '../hooks/useItinerary'
+import { useDocumentTitle } from '../seo/useDocumentTitle'
 import { Container, Section } from '../components/ui'
 import ItineraryView from '../components/ItineraryView'
 import ErrorBanner from '../components/ErrorBanner'
 import LoadingSkeleton from '../components/LoadingSkeleton'
+
+/** Absolute URL of the dynamically rendered OG share card for an itinerary. */
+function ogImageUrl(id: string): string {
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  return `${origin}/api/v1/itineraries/${id}/og-image`
+}
 
 /**
  * Public, read-only shared itinerary at /share/:token. Loads the itinerary via
@@ -19,6 +26,19 @@ export default function SharePage() {
   // through the same banner path as any other load failure.
   const fetcher = useCallback(() => getSharedItinerary(token ?? ''), [token])
   const { itinerary, loading, error, reload, dismissError } = useItinerary(fetcher)
+
+  // Per-share social metadata: title/description from the loaded trip and an
+  // og:image pointing at this itinerary's dynamic share card. Before the
+  // itinerary resolves we fall back to the generic share copy and the static
+  // index.html image (image left undefined).
+  const destination = itinerary?.preferences.destination
+  useDocumentTitle(
+    destination ? `${destination} itinerary` : 'Shared itinerary',
+    destination
+      ? `A day-by-day ${destination} trip plan, shared with you on Travel AI.`
+      : undefined,
+    itinerary ? { image: ogImageUrl(itinerary.id) } : {},
+  )
 
   return (
     <Container>

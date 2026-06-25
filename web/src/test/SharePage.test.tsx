@@ -48,6 +48,25 @@ describe('SharePage', () => {
     expect(screen.queryByRole('button', { name: 'Markdown' })).not.toBeInTheDocument()
   })
 
+  it('sets the og:image meta to the itinerary share-card endpoint', async () => {
+    getSharedMock.mockResolvedValue(makeItinerary({ id: 'it_share9' }))
+    renderPage()
+    await waitFor(() =>
+      expect(screen.getByText('Shared itinerary')).toBeInTheDocument(),
+    )
+    await waitFor(() => {
+      const og = document.head.querySelector('meta[property="og:image"]')
+      expect(og?.getAttribute('content')).toMatch(
+        /\/api\/v1\/itineraries\/it_share9\/og-image$/,
+      )
+    })
+    // The Twitter card image mirrors the OG image.
+    const tw = document.head.querySelector('meta[name="twitter:image"]')
+    expect(tw?.getAttribute('content')).toMatch(
+      /\/api\/v1\/itineraries\/it_share9\/og-image$/,
+    )
+  })
+
   it('shows an error banner and a "plan your own" link when the token is invalid', async () => {
     getSharedMock.mockRejectedValue(new ApiError(404, { detail: 'gone' }))
     renderPage()

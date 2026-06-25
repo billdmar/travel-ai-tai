@@ -27,14 +27,20 @@ function setMeta(selector: string, attrs: Record<string, string>): void {
  *
  * `title` is the bare page name; the brand suffix is appended automatically
  * (the home route passes the full brand string and is used as-is).
+ *
+ * `options.image`, when supplied, overrides the static og:image/twitter:image
+ * from index.html with a per-page absolute URL (e.g. a dynamically rendered
+ * share card). It is restored to its previous value on unmount so the override
+ * never leaks into the next route.
  */
 export function useDocumentTitle(
   title: string,
   description: string = DEFAULT_DESCRIPTION,
-  options: { brand?: boolean } = {},
+  options: { brand?: boolean; image?: string } = {},
 ): void {
   const brand = options.brand ?? true
   const fullTitle = brand ? `${title} | ${SUFFIX}` : title
+  const image = options.image
 
   useEffect(() => {
     if (typeof document === 'undefined') return
@@ -60,11 +66,38 @@ export function useDocumentTitle(
       setMeta('meta[property="og:url"]', { property: 'og:url', content: url })
     }
 
+    // Capture the prior share-image URLs so we can restore them on unmount —
+    // only when this page actually overrides them (otherwise the static
+    // index.html defaults stay untouched).
+    const ogImageEl = document.head.querySelector('meta[property="og:image"]')
+    const twImageEl = document.head.querySelector('meta[name="twitter:image"]')
+    const previousOgImage = ogImageEl?.getAttribute('content') ?? null
+    const previousTwImage = twImageEl?.getAttribute('content') ?? null
+    if (image) {
+      setMeta('meta[property="og:image"]', { property: 'og:image', content: image })
+      setMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: image })
+    }
+
     return () => {
       // Restore the prior title if this page unmounts before another sets one.
       document.title = previous
+      // Undo a per-page image override so it never leaks into the next route.
+      if (image) {
+        if (previousOgImage !== null) {
+          setMeta('meta[property="og:image"]', {
+            property: 'og:image',
+            content: previousOgImage,
+          })
+        }
+        if (previousTwImage !== null) {
+          setMeta('meta[name="twitter:image"]', {
+            name: 'twitter:image',
+            content: previousTwImage,
+          })
+        }
+      }
     }
-  }, [fullTitle, description])
+  }, [fullTitle, description, image])
 }
 
 export { DEFAULT_DESCRIPTION }
