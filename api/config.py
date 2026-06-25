@@ -101,6 +101,10 @@ class Settings(BaseSettings):
         alias="ALLOWED_ORIGINS",
     )
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    # Opt-in Prometheus metrics. When false (default) the MetricsMiddleware and
+    # the ``/metrics`` route are not wired, so dev/local/prod stay quiet and the
+    # live deploy behavior is unchanged unless this is explicitly enabled.
+    enable_metrics: bool = Field(default=False, alias="ENABLE_METRICS")
 
     @field_validator("allowed_origins", mode="before")
     @classmethod
