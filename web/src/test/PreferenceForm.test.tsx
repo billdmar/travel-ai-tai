@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -89,5 +91,26 @@ describe('PreferenceForm dietary & accessibility inputs', () => {
     await user.click(screen.getByRole('button', { name: 'Generate itinerary' }))
     const prefs = lastSubmittedPrefs(onSubmit)
     expect(prefs.accessibility_needs).toEqual([])
+  })
+})
+
+/**
+ * Token-hygiene guard. ``tailwind.config.js`` defines ONLY the accent / ink /
+ * canvas scales — there is no ``brand-*`` scale, and ``slate-*`` / ``bg-white``
+ * are off-palette. Any such class compiles to nothing, leaving the form's focus
+ * rings, progress bar and selected states SILENTLY INERT and visually orphaned
+ * from the rest of the app. This scans the component source so the regression
+ * (it previously shipped ~28 inert ``brand-*`` classes) can never reappear.
+ */
+describe('PreferenceForm color-token hygiene', () => {
+  // Vitest runs with `web/` as the cwd, so resolve the component from there.
+  const source = readFileSync(
+    resolve(process.cwd(), 'src/components/PreferenceForm.tsx'),
+    'utf8',
+  )
+
+  it('uses no inert brand-*, slate-*, or bg-white classes', () => {
+    const offenders = source.match(/\b(?:brand-[\w/-]+|slate-[\w/-]+|bg-white)\b/g)
+    expect(offenders).toBeNull()
   })
 })
