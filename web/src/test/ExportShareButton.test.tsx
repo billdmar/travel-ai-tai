@@ -43,6 +43,21 @@ describe('ExportShareButton', () => {
     expect(screen.getByRole('button', { name: /Share link/ })).toBeInTheDocument()
   })
 
+  it('shares one base button shape across export and share variants', () => {
+    render(<ExportShareButton itineraryId="it_1" />)
+    // The hoisted BASE_BTN geometry (pill + sizing + focus ring) is present on
+    // both the neutral export buttons and the accented share button.
+    const markdown = screen.getByRole('button', { name: 'Markdown' })
+    const share = screen.getByRole('button', { name: /Share link/ })
+    for (const cls of ['rounded-full', 'px-4', 'py-2', 'focus-visible:ring-accent-500']) {
+      expect(markdown.className).toContain(cls)
+      expect(share.className).toContain(cls)
+    }
+    // Variant colour still differentiates them.
+    expect(markdown.className).toContain('bg-canvas-raised')
+    expect(share.className).toContain('bg-accent-500')
+  })
+
   it('requests a markdown export and triggers a download on success', async () => {
     const user = userEvent.setup()
     exportMock.mockResolvedValue(new Blob(['# trip']))

@@ -2,8 +2,8 @@ import '@testing-library/jest-dom'
 
 // jsdom lacks a few browser globals that our motion/preference primitives use.
 // Provide inert polyfills so components that mount framer-motion viewport
-// triggers (via Reveal/ParallaxLayer) and read prefers-reduced-motion render
-// without throwing under the test environment.
+// triggers (via Reveal) and read prefers-reduced-motion render without throwing
+// under the test environment.
 
 if (typeof globalThis.IntersectionObserver === 'undefined') {
   class MockIntersectionObserver {

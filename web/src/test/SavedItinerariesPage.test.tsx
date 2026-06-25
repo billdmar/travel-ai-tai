@@ -112,6 +112,32 @@ describe('SavedItinerariesPage', () => {
     await waitFor(() => expect(listMock).toHaveBeenCalledTimes(2))
   })
 
+  it('disables the Confirm button while a delete is in flight to prevent a double-fire', async () => {
+    const user = userEvent.setup()
+    listMock.mockResolvedValue(listWith([makeListItem({ id: 'a', destination: 'Kyoto' })]))
+    // Hold the delete open so the in-flight state is observable.
+    let resolveDelete: (() => void) | undefined
+    deleteMock.mockReturnValue(new Promise<void>((res) => (resolveDelete = res)))
+    renderPage()
+    await screen.findByText('Kyoto')
+
+    await user.click(screen.getByRole('button', { name: /Delete itinerary for Kyoto/ }))
+    const confirm = screen.getByRole('button', { name: /Confirm delete itinerary for Kyoto/ })
+    await user.click(confirm)
+
+    // The first click fired exactly one delete and the button is now disabled.
+    expect(deleteMock).toHaveBeenCalledTimes(1)
+    expect(confirm).toBeDisabled()
+    expect(confirm).toHaveTextContent('Deleting…')
+
+    // A second click while in flight is a no-op (still one delete).
+    await user.click(confirm)
+    expect(deleteMock).toHaveBeenCalledTimes(1)
+
+    resolveDelete?.()
+    await waitFor(() => expect(listMock).toHaveBeenCalledTimes(2))
+  })
+
   it('surfaces an error banner when the list fetch fails', async () => {
     listMock.mockRejectedValue(new ApiError(0, { error: 'network_error' }))
     renderPage()

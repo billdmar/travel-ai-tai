@@ -15,6 +15,16 @@ const EXPORT_EXT: Record<'markdown' | 'pdf' | 'ics', string> = {
   ics: 'ics',
 }
 
+// Shared button shape (pill, sizing, focus ring, disabled affordance). The
+// export and share variants layer their own surface/colour on top of this so
+// the common geometry lives in one place.
+const BASE_BTN =
+  'inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors duration-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-wait disabled:opacity-60'
+// Neutral, framed buttons for the file-export actions (Markdown / PDF / ICS).
+const EXPORT_BTN = `${BASE_BTN} border border-ink-line bg-canvas-raised text-ink-soft hover:bg-canvas-sunken hover:text-ink`
+// The single accented button for creating a public share link.
+const SHARE_BTN = `${BASE_BTN} bg-accent-500 text-white shadow-sm hover:bg-accent-600`
+
 function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -85,9 +95,6 @@ export default function ExportShareButton({ itineraryId }: ExportShareButtonProp
     }
   }
 
-  const baseBtn =
-    'inline-flex items-center gap-2 rounded-full border border-ink-line bg-canvas-raised px-4 py-2 text-sm font-medium text-ink-soft transition-colors duration-hover hover:bg-canvas-sunken hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-wait disabled:opacity-60'
-
   return (
     <div className="space-y-3">
       {error != null && (
@@ -100,7 +107,7 @@ export default function ExportShareButton({ itineraryId }: ExportShareButtonProp
           onClick={() => handleExport('markdown')}
           disabled={busy !== null}
           aria-busy={busy === 'markdown'}
-          className={baseBtn}
+          className={EXPORT_BTN}
         >
           <svg
             aria-hidden="true"
@@ -124,7 +131,7 @@ export default function ExportShareButton({ itineraryId }: ExportShareButtonProp
           onClick={() => handleExport('pdf')}
           disabled={busy !== null}
           aria-busy={busy === 'pdf'}
-          className={baseBtn}
+          className={EXPORT_BTN}
         >
           <svg
             aria-hidden="true"
@@ -148,7 +155,7 @@ export default function ExportShareButton({ itineraryId }: ExportShareButtonProp
           onClick={() => handleExport('ics')}
           disabled={busy !== null}
           aria-busy={busy === 'ics'}
-          className={baseBtn}
+          className={EXPORT_BTN}
         >
           <svg
             aria-hidden="true"
@@ -172,7 +179,7 @@ export default function ExportShareButton({ itineraryId }: ExportShareButtonProp
           onClick={handleShare}
           disabled={busy !== null}
           aria-busy={busy === 'share'}
-          className="inline-flex items-center gap-2 rounded-full bg-accent-500 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors duration-hover hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 disabled:cursor-wait disabled:opacity-60"
+          className={SHARE_BTN}
         >
           <svg
             aria-hidden="true"
