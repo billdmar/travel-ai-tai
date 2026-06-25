@@ -267,6 +267,15 @@ async def test_metrics_endpoint_exposes_metric_names(client_factory) -> None:
 
 
 async def test_metrics_endpoint_absent_when_not_wired(client) -> None:
-    """The default app fixture does not wire /metrics, so it 404s."""
+    """The default app (ENABLE_METRICS=false) never serves Prometheus output.
+
+    /metrics is registered only when ``settings.enable_metrics`` is true. With
+    it disabled there is no metrics route, so the request falls through to the
+    SPA catch-all (which returns the index.html shell, not a 404, when a built
+    ``web/dist`` is present). The contract we assert is therefore "no Prometheus
+    exposition is served", not a specific status code.
+    """
     resp = await client.get("/metrics")
-    assert resp.status_code == 404
+    assert "text/plain" not in resp.headers.get("content-type", "")
+    assert "request_count" not in resp.text
+    assert "request_duration_seconds" not in resp.text
