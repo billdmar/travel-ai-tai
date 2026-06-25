@@ -1,9 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
+
+// Mock the api client so the page never touches real fetch. The curated-list
+// loader is controlled per-test; vi.mock factories are hoisted, so the mock fn
+// is created via vi.hoisted() to exist when the factory runs.
+const { curatedMock } = vi.hoisted(() => ({ curatedMock: vi.fn() }))
+
+vi.mock('../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../api/client')>('../api/client')
+  return { ...actual, fetchCuratedDestinations: curatedMock }
+})
+
 import ExplorePage from '../pages/ExplorePage'
 import { DESTINATIONS } from '../components/explore/destinations'
+import type { CuratedDestination } from '../components/explore/destinations'
 import { stubImageFetch } from './fixtures'
 
 function renderPage() {
@@ -14,8 +26,18 @@ function renderPage() {
   )
 }
 
+function gallery() {
+  return screen.getByRole('list', { name: 'Destinations' })
+}
+
 describe('ExplorePage', () => {
-  beforeEach(() => stubImageFetch())
+  beforeEach(() => {
+    stubImageFetch()
+    // Default: the endpoint resolves with the same curated atlas the static
+    // fallback holds, so existing ordering/filter assertions hold.
+    curatedMock.mockReset()
+    curatedMock.mockResolvedValue(DESTINATIONS)
+  })
   afterEach(() => vi.restoreAllMocks())
 
   it('renders the editorial header and the full gallery by default', () => {
@@ -23,8 +45,7 @@ describe('ExplorePage', () => {
     expect(
       screen.getByRole('heading', { name: /Somewhere worth the flight/ }),
     ).toBeInTheDocument()
-    const gallery = screen.getByRole('list', { name: 'Destinations' })
-    expect(within(gallery).getAllByRole('listitem')).toHaveLength(DESTINATIONS.length)
+    expect(within(gallery()).getAllByRole('listitem')).toHaveLength(DESTINATIONS.length)
   })
 
   it('exposes the vibe filter as an accessible group with All preselected', () => {
@@ -42,8 +63,7 @@ describe('ExplorePage', () => {
     await user.click(screen.getByRole('button', { name: 'Mountains' }))
 
     const mountainCount = DESTINATIONS.filter((d) => d.vibes.includes('Mountains')).length
-    const gallery = screen.getByRole('list', { name: 'Destinations' })
-    expect(within(gallery).getAllByRole('listitem')).toHaveLength(mountainCount)
+    expect(within(gallery()).getAllByRole('listitem')).toHaveLength(mountainCount)
     expect(mountainCount).toBeLessThan(DESTINATIONS.length)
   })
 
@@ -55,8 +75,7 @@ describe('ExplorePage', () => {
     expect(chip).toHaveAttribute('aria-pressed', 'true')
     await user.click(chip)
     expect(chip).toHaveAttribute('aria-pressed', 'false')
-    const gallery = screen.getByRole('list', { name: 'Destinations' })
-    expect(within(gallery).getAllByRole('listitem')).toHaveLength(DESTINATIONS.length)
+    expect(within(gallery()).getAllByRole('listitem')).toHaveLength(DESTINATIONS.length)
   })
 
   it('links the closing CTA to Discover', () => {
@@ -64,5 +83,50 @@ describe('ExplorePage', () => {
     expect(
       screen.getByRole('link', { name: /Find my destination/ }),
     ).toHaveAttribute('href', '/discover')
+  })
+
+  it('renders the server-fetched curated list when the endpoint succeeds', async () => {
+    const serverRows: CuratedDestination[] = [
+      {
+        slug: 'kyoto',
+        name: 'Kyoto',
+        country: 'Japan',
+        query: 'Kyoto, Japan',
+        tagline: 'Temple gardens.',
+        bestSeason: 'spring',
+        vibes: ['Culture'],
+        story: ['A quiet city.'],
+      },
+      {
+        slug: 'lisbon',
+        name: 'Lisbon',
+        country: 'Portugal',
+        query: 'Lisbon, Portugal',
+        tagline: 'Tiled hills.',
+        bestSeason: 'autumn',
+        vibes: ['City'],
+        story: ['Trams and tiles.'],
+      },
+    ]
+    curatedMock.mockResolvedValue(serverRows)
+    renderPage()
+
+    // Once the fetch resolves, the gallery shows exactly the server rows (a
+    // count distinct from the static fallback proves the swap took effect).
+    await waitFor(() =>
+      expect(within(gallery()).getAllByRole('listitem')).toHaveLength(serverRows.length),
+    )
+    expect(serverRows.length).toBeLessThan(DESTINATIONS.length)
+  })
+
+  it('falls back to the bundled static atlas when the endpoint fails', async () => {
+    curatedMock.mockRejectedValue(new Error('network down'))
+    renderPage()
+
+    // The fallback is the initial state, so the full static atlas is present
+    // immediately and stays after the rejected fetch settles.
+    expect(within(gallery()).getAllByRole('listitem')).toHaveLength(DESTINATIONS.length)
+    await waitFor(() => expect(curatedMock).toHaveBeenCalled())
+    expect(within(gallery()).getAllByRole('listitem')).toHaveLength(DESTINATIONS.length)
   })
 })

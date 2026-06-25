@@ -1,3 +1,4 @@
+import type { CuratedDestination } from '../components/explore/destinations'
 import type {
   ImageResult,
   RecommendRequest,
@@ -136,6 +137,24 @@ export function recommendDestinations(req: RecommendRequest): Promise<RecommendR
     method: 'POST',
     body: JSON.stringify(req),
   })
+}
+
+/** Envelope returned by GET /api/v1/destinations/curated. */
+interface CuratedDestinationsResponse {
+  destinations: CuratedDestination[]
+}
+
+/**
+ * Fetch the DB-backed curated Explore atlas. FROZEN contract:
+ * GET /api/v1/destinations/curated -> { destinations: CuratedDestination[] }.
+ * The payload is camelCase and matches the CuratedDestination shape exactly, so
+ * callers can use it directly. Throws ApiError on any non-2xx/network failure;
+ * the Explore page catches that and falls back to its bundled static array, so
+ * the gallery never breaks when the endpoint is unavailable.
+ */
+export async function fetchCuratedDestinations(): Promise<CuratedDestination[]> {
+  const body = await request<CuratedDestinationsResponse>(`${BASE}/destinations/curated`)
+  return body.destinations
 }
 
 /**
