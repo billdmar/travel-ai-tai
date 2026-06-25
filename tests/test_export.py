@@ -182,6 +182,192 @@ def test_render_pdf_returns_pdf_bytes() -> None:
     assert out[:5] == b"%PDF-"
 
 
+@pytest.mark.skipif(not _HAS_FPDF, reason="fpdf2 not installed")
+def test_render_pdf_is_multipage_premium_artifact() -> None:
+    """The polished PDF is a real multi-section document, not a flat text dump.
+
+    A 2-day sample yields: cover + 2 day pages + cost-summary + packing = 5
+    pages. fpdf2 writes one ``/Type /Page`` object per page (the page *tree* is
+    ``/Type /Pages``), so counting the singular form gives the page count.
+    """
+    from api import export
+
+    export._PDF_CACHE.clear()  # other tests render the same sample id (cache key)
+    itinerary = _sample_itinerary()
+    # Add a second day so we exercise multiple day spreads.
+    itinerary.days.append(
+        ItineraryResponse.model_validate(
+            {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "created_at": "2026-07-01T00:00:00Z",
+                "preferences": _payload(),
+                "days": [
+                    {
+                        "day_number": 2,
+                        "date": "2026-07-02",
+                        "theme": "Temples",
+                        "activities": [
+                            {
+                                "time": "10:00",
+                                "place": "Senso-ji",
+                                "description": "Temple visit.",
+                                "estimated_cost_usd": 0.0,
+                                "category": "attraction",
+                                "map_url": "https://maps.example/senso",
+                            }
+                        ],
+                    }
+                ],
+                "total_estimated_cost_usd": 25.0,
+                "currency": "USD",
+                "summary": "Two days.",
+                "tips": [],
+                "provider": "mock",
+            }
+        ).days[0]
+    )
+
+    out = export.render_pdf(itinerary)
+    assert out[:5] == b"%PDF-"
+    # Comfortably larger than the old flat text dump.
+    assert len(out) > 2000
+    # Cover + 2 days + cost + packing == 5 page objects.
+    page_count = out.count(b"/Type /Page\n") + out.count(b"/Type /Page ")
+    assert page_count == 5
+    # Destination text survives into the (uncompressed) content stream.
+    assert b"Tokyo" in out
+
+
+@pytest.mark.skipif(not _HAS_FPDF, reason="fpdf2 not installed")
+def test_render_pdf_caches_per_itinerary_id() -> None:
+    """A second render of the same itinerary id returns the cached bytes."""
+    from api import export
+
+    itinerary = _sample_itinerary()
+    export._PDF_CACHE.clear()
+    first = export.render_pdf(itinerary)
+    second = export.render_pdf(itinerary)
+    # Same object identity proves the cache short-circuited the re-render.
+    assert first is second
+    assert str(itinerary.id) in export._PDF_CACHE
+
+
+def test_packing_groups_mirror_frontend_rules() -> None:
+    """``_packing_groups`` ports web/src/components/PackingChecklist.tsx exactly.
+
+    Asserts the season-, travel-style-, group-, accessibility-, dietary-, and
+    activity-category-driven branches so the server-rendered checklist matches
+    what the UI shows.
+    """
+    from api.export import _packing_groups
+
+    itinerary = ItineraryResponse.model_validate(
+        {
+            "id": "33333333-3333-3333-3333-333333333333",
+            "created_at": "2026-07-01T00:00:00Z",
+            # July start -> summer; luxury + group + needs all add items.
+            "preferences": _payload(
+                start_date="2026-07-01",
+                end_date="2026-07-02",
+                travel_style="luxury",
+                group_size=3,
+                accessibility_needs=["step-free access"],
+                dietary_needs=["vegetarian"],
+            ),
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-07-01",
+                    "theme": "Mix",
+                    "activities": [
+                        {
+                            "time": "09:00",
+                            "place": "Beach",
+                            "description": "Swim.",
+                            "estimated_cost_usd": 0.0,
+                            "category": "leisure",
+                            "map_url": "https://m/1",
+                        },
+                        {
+                            "time": "12:00",
+                            "place": "Cafe",
+                            "description": "Lunch.",
+                            "estimated_cost_usd": 20.0,
+                            "category": "food",
+                            "map_url": "https://m/2",
+                        },
+                    ],
+                }
+            ],
+            "total_estimated_cost_usd": 20.0,
+            "currency": "USD",
+            "summary": "s",
+            "tips": [],
+            "provider": "mock",
+        }
+    )
+
+    groups = dict(_packing_groups(itinerary))
+    assert list(groups) == [
+        "Essentials",
+        "Clothing",
+        "Health & comfort",
+        "For your activities",
+    ]
+    # group_size > 1 adds the shared-bookings essential.
+    assert "Shared copies of bookings for the group" in groups["Essentials"]
+    # Summer + luxury clothing branches.
+    assert "Sun hat and sunglasses" in groups["Clothing"]
+    assert "A smart outfit for upscale dining or venues" in groups["Clothing"]
+    # Accessibility need echoed verbatim.
+    assert "Accessibility: step-free access" in groups["Health & comfort"]
+    # Activity-category + dietary extras.
+    assert "Swimwear and a quick-dry towel" in groups["For your activities"]
+    assert "Reservation confirmations for dining" in groups["For your activities"]
+    assert "Dietary note to show: vegetarian" in groups["For your activities"]
+
+
+def test_packing_groups_winter_omits_activity_group_when_empty() -> None:
+    """No activity-driven items -> the 'For your activities' group is dropped."""
+    from api.export import _packing_groups
+
+    itinerary = ItineraryResponse.model_validate(
+        {
+            "id": "44444444-4444-4444-4444-444444444444",
+            "created_at": "2026-01-01T00:00:00Z",
+            # January start -> winter; budget style; only an 'other' activity so
+            # none of the category-driven extras fire.
+            "preferences": _payload(start_date="2026-01-01", end_date="2026-01-02"),
+            "days": [
+                {
+                    "day_number": 1,
+                    "date": "2026-01-01",
+                    "theme": "Quiet",
+                    "activities": [
+                        {
+                            "time": "09:00",
+                            "place": "Walk",
+                            "description": "Stroll.",
+                            "estimated_cost_usd": 0.0,
+                            "category": "other",
+                            "map_url": "https://m/1",
+                        }
+                    ],
+                }
+            ],
+            "total_estimated_cost_usd": 0.0,
+            "currency": "USD",
+            "summary": "s",
+            "tips": [],
+            "provider": "mock",
+        }
+    )
+
+    groups = dict(_packing_groups(itinerary))
+    assert "For your activities" not in groups
+    assert "Gloves, hat and scarf" in groups["Clothing"]
+
+
 # ── ICS renderer unit coverage ──────────────────────────────────────────────
 
 
