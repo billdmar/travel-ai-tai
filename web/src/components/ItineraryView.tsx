@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import type { ItineraryResponse } from '../types/itinerary'
 import { removeDayActivity, reorderDayActivities, saveItinerary } from '../api/client'
 import { money } from '../lib/format'
-import { Reveal } from '../components/ui'
+import { Confetti, Reveal } from '../components/ui'
 import { DestinationImage } from './DestinationImage'
 import DayCard from './DayCard'
 import CostBreakdown from './CostBreakdown'
@@ -70,6 +70,10 @@ export default function ItineraryView({
   const [saveState, setSaveState] = useState<SaveState>(initialItinerary.saved ? 'saved' : 'idle')
   const [saveError, setSaveError] = useState<unknown>(null)
   const [showToast, setShowToast] = useState(false)
+  // One-shot save-celebration confetti. Deliberately declared OUTSIDE the
+  // re-seed block above so switching trips (which reseeds `itinerary`) never
+  // resets a burst in flight; the burst clears itself via Confetti's onDone.
+  const [celebrate, setCelebrate] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -134,6 +138,7 @@ export default function ItineraryView({
       await saveItinerary(id)
       setSaveState('saved')
       setShowToast(true)
+      setCelebrate(true)
       if (toastTimer.current) clearTimeout(toastTimer.current)
       toastTimer.current = setTimeout(() => setShowToast(false), 5000)
     } catch (err) {
@@ -478,6 +483,10 @@ export default function ItineraryView({
           )}
         </div>
       )}
+
+      {/* Save-celebration burst — decorative, self-unmounting, reduced-motion
+          aware (renders nothing under prefers-reduced-motion). */}
+      {celebrate && <Confetti onDone={() => setCelebrate(false)} />}
 
       {/* Confirmation toast */}
       {showToast && (
