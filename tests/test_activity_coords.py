@@ -64,3 +64,38 @@ def test_mock_coords_are_deterministic_across_calls() -> None:
         (a["lat"], a["lng"]) for day in it["days"] for a in day["activities"]
     ]
     assert coords(first) == coords(second)
+
+
+def test_activity_drops_out_of_range_lat() -> None:
+    """An out-of-range latitude nulls BOTH coords (drop the pin, not plot garbage)."""
+    activity = Activity(**_base_activity_kwargs(), lat=500.0, lng=135.7727)
+    assert activity.lat is None
+    assert activity.lng is None
+
+
+def test_activity_drops_out_of_range_lng() -> None:
+    """An out-of-range longitude nulls BOTH coords."""
+    activity = Activity(**_base_activity_kwargs(), lat=34.9671, lng=-200.0)
+    assert activity.lat is None
+    assert activity.lng is None
+
+
+def test_activity_drops_when_one_valid_one_invalid() -> None:
+    """A half-valid pair is meaningless: both fields normalize to None."""
+    activity = Activity(**_base_activity_kwargs(), lat=34.9671, lng=999.0)
+    assert activity.lat is None
+    assert activity.lng is None
+
+
+def test_activity_keeps_boundary_coords() -> None:
+    """Coords exactly on the valid bounds pass through unchanged."""
+    activity = Activity(**_base_activity_kwargs(), lat=-90.0, lng=180.0)
+    assert activity.lat == -90.0
+    assert activity.lng == 180.0
+
+
+def test_activity_absent_coords_stay_none() -> None:
+    """Absent coords remain None — the validator must not fabricate values."""
+    activity = Activity(**_base_activity_kwargs())
+    assert activity.lat is None
+    assert activity.lng is None
