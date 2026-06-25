@@ -70,6 +70,34 @@ describe('SavedItinerariesPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/discover')
   })
 
+  it('keeps the staggered empty state intact under reduced motion (Reveal passes children through)', async () => {
+    // Force reduced motion so the empty-state Reveals render their children as
+    // plain elements — the heading, copy and CTA must all stay present.
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query.includes('reduce'),
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList) as typeof window.matchMedia
+    try {
+      listMock.mockResolvedValue(emptyList())
+      renderPage()
+      expect(await screen.findByText('No saved itineraries yet')).toBeInTheDocument()
+      expect(
+        screen.getByText('Generate a trip and hit Save to keep it here for later.'),
+      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Plan a trip' })).toBeInTheDocument()
+    } finally {
+      window.matchMedia = original
+    }
+  })
+
   it('lists saved itineraries with destination, dates and cost', async () => {
     listMock.mockResolvedValue(
       listWith([
