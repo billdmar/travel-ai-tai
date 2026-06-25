@@ -2,7 +2,7 @@
 
 These stay SDK-free: they only exercise the *selection* branches that do not
 import a third-party SDK. In particular, ``gemini`` without a key falls back to
-the mock provider (no ``google-generativeai`` import), and ``mock`` always
+the mock provider (no ``google-genai`` import), and ``mock`` always
 returns the mock provider.
 """
 
