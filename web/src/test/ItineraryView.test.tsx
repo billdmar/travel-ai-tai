@@ -60,14 +60,22 @@ describe('ItineraryView', () => {
     expect(screen.getByText('Buy an IC card for transit.')).toBeInTheDocument()
   })
 
-  it('saves the itinerary and shows the confirmation toast', async () => {
+  it('saves the itinerary and shows the confirmation toast + celebration', async () => {
     const user = userEvent.setup()
     saveMock.mockResolvedValue(makeItinerary({ saved: true }))
-    renderView()
+    const { container } = renderView()
+    // The confetti burst must not exist before a save.
+    expect(container.querySelector('[aria-hidden="true"].fixed')).not.toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: /Save itinerary/ }))
     await waitFor(() => expect(saveMock).toHaveBeenCalledWith('it_test1'))
     expect(await screen.findByLabelText('Itinerary saved')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Saved to your itineraries.')
+    // ...and the celebration confetti mounts alongside the toast (motion is
+    // enabled in tests since matchMedia is unset → reduced-motion is false).
+    await waitFor(() =>
+      expect(container.querySelector('[aria-hidden="true"].fixed')).toBeInTheDocument(),
+    )
   })
 
   it('surfaces an error banner and stays in idle when save fails', async () => {
