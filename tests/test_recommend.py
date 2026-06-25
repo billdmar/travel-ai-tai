@@ -87,6 +87,24 @@ async def test_different_prefs_different_id(test_settings, sessionmaker) -> None
     assert count == 2
 
 
+async def test_created_at_stamped_by_database(test_settings, sessionmaker) -> None:
+    # created_at is now server-owned (server_default=now()): the engine does not
+    # set it in Python, so both the persisted row and the returned response must
+    # still carry a DB-stamped value, and the two must agree.
+    engine = _engine(test_settings)
+    async with sessionmaker() as session:
+        response = await engine.generate(_prefs(), session)
+
+    assert response.created_at is not None
+
+    async with sessionmaker() as session:
+        record = await session.get(ItineraryRecord, str(response.id))
+    assert record is not None
+    assert record.created_at is not None
+    # The response surfaces exactly the timestamp the database assigned the row.
+    assert response.created_at == record.created_at
+
+
 class _UnavailableProvider(LLMProvider):
     name = "openai"
 
