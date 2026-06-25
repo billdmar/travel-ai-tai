@@ -88,6 +88,12 @@ class Settings(BaseSettings):
     redis_url: str | None = Field(default=None, alias="REDIS_URL")
 
     # ── Operations ──────────────────────────────────────────────────────────
+    # Upper bound (seconds) for a single ``/ready`` dependency probe (DB / cache)
+    # before it is treated as unreachable, so a hung backend reports not-ready
+    # instead of making the readiness endpoint itself hang.
+    health_check_timeout_seconds: float = Field(
+        default=2.0, alias="HEALTH_CHECK_TIMEOUT_SECONDS", gt=0
+    )
     debug_mode: bool = Field(default=False, alias="DEBUG_MODE")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     allowed_origins: list[str] = Field(

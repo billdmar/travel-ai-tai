@@ -8,6 +8,7 @@ cache backend. It returns 200 only when both pass, otherwise 503.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -32,22 +33,38 @@ async def health(request: Request) -> dict[str, str]:
     return {"status": "ok", "version": settings.version}
 
 
-async def _check_db(sessionmaker: async_sessionmaker) -> bool:
-    """Run ``SELECT 1`` through a real session; True on success."""
+async def _check_db(sessionmaker: async_sessionmaker, timeout: float) -> bool:
+    """Run ``SELECT 1`` through a real session; True on success.
+
+    Bounded by ``timeout`` seconds so a hung DB connection makes the probe
+    report unreachable instead of hanging ``/ready`` indefinitely.
+    """
     try:
-        async with sessionmaker() as session:
-            await session.execute(text("SELECT 1"))
+        async with asyncio.timeout(timeout):
+            async with sessionmaker() as session:
+                await session.execute(text("SELECT 1"))
         return True
+    except TimeoutError:
+        logger.warning("readiness DB check timed out after %ss", timeout)
+        return False
     except Exception as exc:  # pragma: no cover - exercised via mocked failure
         logger.warning("readiness DB check failed: %s", exc)
         return False
 
 
-async def _check_cache(cache: ItineraryCache) -> bool:
-    """Round-trip the cache backend; True on success."""
+async def _check_cache(cache: ItineraryCache, timeout: float) -> bool:
+    """Round-trip the cache backend; True on success.
+
+    Bounded by ``timeout`` seconds so a hung cache backend makes the probe
+    report unreachable instead of hanging ``/ready`` indefinitely.
+    """
     try:
-        await cache.get("__readiness_probe__")
+        async with asyncio.timeout(timeout):
+            await cache.get("__readiness_probe__")
         return True
+    except TimeoutError:
+        logger.warning("readiness cache check timed out after %ss", timeout)
+        return False
     except Exception as exc:  # pragma: no cover - exercised via mocked failure
         logger.warning("readiness cache check failed: %s", exc)
         return False
@@ -56,11 +73,13 @@ async def _check_cache(cache: ItineraryCache) -> bool:
 @router.get("/ready")
 async def ready(request: Request, response: Response) -> dict[str, object]:
     """Readiness: 200 when DB and cache are reachable, else 503."""
+    settings: Settings = request.app.state.settings
     sessionmaker: async_sessionmaker = request.app.state.sessionmaker
     cache: ItineraryCache = request.app.state.cache
 
-    db_ok = await _check_db(sessionmaker)
-    cache_ok = await _check_cache(cache)
+    timeout = settings.health_check_timeout_seconds
+    db_ok = await _check_db(sessionmaker, timeout)
+    cache_ok = await _check_cache(cache, timeout)
     ready_ok = db_ok and cache_ok
 
     if not ready_ok:
