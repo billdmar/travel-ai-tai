@@ -75,4 +75,19 @@ describe('ItineraryPage', () => {
     )
     expect(getMock).toHaveBeenCalledTimes(2)
   })
+
+  it('navigates to the plan form in adjust mode when "Adjust trip" is clicked', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event')
+    const user = userEvent.setup()
+    const itinerary = makeItinerary()
+    getMock.mockResolvedValue(itinerary)
+    renderPage()
+    await screen.findByRole('button', { name: 'Adjust trip' })
+    await user.click(screen.getByRole('button', { name: 'Adjust trip' }))
+    expect(navigateMock).toHaveBeenCalledWith('/plan/Kyoto', {
+      state: {
+        adjust: { sourceId: itinerary.id, preferences: itinerary.preferences },
+      },
+    })
+  })
 })

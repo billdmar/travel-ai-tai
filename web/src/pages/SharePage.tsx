@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import type { ItineraryResponse } from '../types/itinerary'
 import { getSharedItinerary } from '../api/client'
+import { useItinerary } from '../hooks/useItinerary'
 import { Container, Section } from '../components/ui'
 import ItineraryView from '../components/ItineraryView'
 import ErrorBanner from '../components/ErrorBanner'
@@ -15,29 +15,10 @@ import LoadingSkeleton from '../components/LoadingSkeleton'
 export default function SharePage() {
   const { token } = useParams<{ token: string }>()
 
-  const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<unknown>(null)
-
-  const load = useCallback(async () => {
-    if (!token) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await getSharedItinerary(token)
-      setItinerary(res)
-    } catch (err) {
-      setError(err)
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    // Mount/param-change data fetch; the setState inside `load` is intentional.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load()
-  }, [load])
+  // An empty token never resolves server-side; useItinerary surfaces the error
+  // through the same banner path as any other load failure.
+  const fetcher = useCallback(() => getSharedItinerary(token ?? ''), [token])
+  const { itinerary, loading, error, reload, dismissError } = useItinerary(fetcher)
 
   return (
     <Container>
@@ -46,7 +27,7 @@ export default function SharePage() {
           <LoadingSkeleton />
         ) : error != null ? (
           <div className="mx-auto max-w-2xl space-y-4">
-            <ErrorBanner error={error} onDismiss={() => setError(null)} onRetry={load} />
+            <ErrorBanner error={error} onDismiss={dismissError} onRetry={reload} />
             <div className="text-center">
               <Link
                 to="/discover"

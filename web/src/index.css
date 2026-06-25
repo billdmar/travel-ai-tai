@@ -50,10 +50,16 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Accessible focus ring in the accent color, used app-wide. */
+/* Accessible focus ring in the accent color, used app-wide (WCAG 2.4.7). The
+   `:where()` selector is intentionally zero-specificity, but many interactive
+   elements carry a Tailwind `focus-visible:outline-none` (a leftover from
+   suppressing the browser default) whose class-level specificity would defeat
+   this ring and leave keyboard users with no visible focus. `!important` keeps
+   the ring authoritative so focus is always visible; it only paints on
+   keyboard/`:focus-visible`, so pointer interactions are unaffected. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid #3f7a72;
-  outline-offset: 2px;
+  outline: 2px solid #3f7a72 !important;
+  outline-offset: 2px !important;
 }
 
 /* MANDATORY reduced-motion fallback: kill smooth scroll and any animation/

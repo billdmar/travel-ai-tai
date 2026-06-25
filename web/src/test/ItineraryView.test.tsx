@@ -102,4 +102,17 @@ describe('ItineraryView', () => {
     await user.click(screen.getByRole('button', { name: 'Plan another trip' }))
     expect(onReset).toHaveBeenCalledOnce()
   })
+
+  it('invokes onAdjust when "Adjust trip" is clicked', async () => {
+    const user = userEvent.setup()
+    const onAdjust = vi.fn()
+    renderView({ onAdjust })
+    await user.click(screen.getByRole('button', { name: 'Adjust trip' }))
+    expect(onAdjust).toHaveBeenCalledOnce()
+  })
+
+  it('hides the "Adjust trip" button in readOnly mode', () => {
+    renderView({ onAdjust: vi.fn(), readOnly: true })
+    expect(screen.queryByRole('button', { name: 'Adjust trip' })).not.toBeInTheDocument()
+  })
 })
