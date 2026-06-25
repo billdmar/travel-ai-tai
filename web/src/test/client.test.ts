@@ -3,6 +3,7 @@ import {
   ApiError,
   createItinerary,
   exportItinerary,
+  fetchCuratedDestinations,
   fetchImage,
   getItinerary,
   recommendDestinations,
@@ -131,6 +132,36 @@ describe('fetchImage', () => {
     expect(img.fallback).toBe(true)
     expect(img.url).toBeNull()
     expect(img.alt).toBe('Kyoto temple')
+  })
+})
+
+describe('fetchCuratedDestinations', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('unwraps the destinations array on success', async () => {
+    const rows = [
+      {
+        slug: 'kyoto',
+        name: 'Kyoto',
+        country: 'Japan',
+        query: 'Kyoto, Japan',
+        tagline: 'Temples.',
+        bestSeason: 'spring',
+        vibes: ['Culture'],
+        story: ['A line.'],
+      },
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(200, { destinations: rows })))
+    const out = await fetchCuratedDestinations()
+    expect(out).toEqual(rows)
+  })
+
+  it('throws ApiError on a non-2xx response (caller handles the fallback)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(503, null)))
+    await expect(fetchCuratedDestinations()).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 503,
+    })
   })
 })
 
