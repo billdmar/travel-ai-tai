@@ -27,7 +27,19 @@ COPY --from=web-build /web/dist ./web/dist
 # Bind the port the platform provides ($PORT on Render/Heroku/Cloud Run);
 # fall back to 8000 for local `docker run`. Shell form so $PORT is expanded.
 EXPOSE 8000
-CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}
+
+# Liveness check using Python (no curl, to avoid image bloat). Hits the
+# dependency-free /health probe in api/routes/health.py. Targets 8000 — the
+# local `docker run` fallback port; managed platforms (Render) use their own
+# external healthCheckPath and ignore this instruction.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+
+# Drain in-flight SSE/LLM requests on deploy instead of cutting them:
+#   --timeout-graceful-shutdown 30  wait up to 30s for active requests to finish
+#   --timeout-keep-alive 65         keep idle keep-alive sockets ~65s (> typical
+#                                   60s LB idle timeout) to avoid races
+CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000} --timeout-graceful-shutdown 30 --timeout-keep-alive 65
 
 # ── GPU / scale note ─────────────────────────────────────────────────────────
 # This image is CPU-only and stateless; scale horizontally behind a load
