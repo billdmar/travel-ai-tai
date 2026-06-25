@@ -12,7 +12,7 @@ from __future__ import annotations
 import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from api.config import Settings
@@ -40,8 +40,10 @@ class LLMResult:
 class LLMProvider(ABC):
     """Abstract interface for itinerary-generating LLM providers."""
 
-    #: Stable provider identifier persisted on each itinerary record.
-    name: str
+    #: Stable provider identifier persisted on each itinerary record. The
+    #: ``Literal`` matches ``ItineraryResponse.provider`` so the value can flow
+    #: straight into the response/record without a cast.
+    name: Literal["openai", "mock", "langchain", "gemini"]
 
     @abstractmethod
     async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:

@@ -160,11 +160,10 @@ class RecommendationEngine:
         generated = normalize_generated(generated, prefs, self._settings)
 
         itinerary_id = uuid4()
-        # Trust the provider-reported usage; mock reports None, which we record
-        # as 0 to distinguish "no model call" from "unknown".
-        tokens_used = (
-            0 if self._provider.name == "mock" else result.tokens_used
-        )
+        # Trust the provider-reported usage; a provider that reports nothing
+        # (the mock, or a real response without usage metadata) records 0 to
+        # distinguish "no usage reported" from a real count.
+        tokens_used = result.tokens_used if result.tokens_used is not None else 0
 
         # ``created_at`` is owned by the database (server_default=now()), so we
         # persist first and read the DB-assigned timestamp back off the row when
@@ -183,7 +182,7 @@ class RecommendationEngine:
             created_at=record.created_at,
             preferences=prefs,
             generated=generated,
-            provider=self._provider.name,  # type: ignore[arg-type]
+            provider=self._provider.name,
             tokens_used=tokens_used,
             saved=False,  # fresh generation is a draft until explicitly saved
             fallback_reason=result.fallback_reason,
