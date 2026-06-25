@@ -19,7 +19,6 @@ from api.config import Settings
 from api.db import ItineraryRecord, get_session
 from api.llm.provider import TOKEN_COUNTER
 from api.models import (
-    ItineraryListItem,
     ItineraryListResponse,
     ItineraryResponse,
     TravelPreferences,
@@ -29,6 +28,7 @@ from api.recommend import (
     ItineraryParseError,
     LLMUnavailableError,
     RecommendationEngine,
+    record_to_list_item,
     record_to_response,
 )
 from api.share import delete_tokens_for_itinerary
@@ -151,18 +151,12 @@ async def list_itineraries(
         .limit(per_page)
     )
 
-    items = [
-        ItineraryListItem(
-            id=UUID(record.id),
-            created_at=record.created_at,
-            destination=response.preferences.destination,
-            start_date=response.preferences.start_date,
-            end_date=response.preferences.end_date,
-            total_estimated_cost_usd=response.total_estimated_cost_usd,
-        )
-        for record in rows
-        if (response := record_to_response(record))
-    ]
+    # Project each row straight onto the compact list item. Using the full
+    # ``record_to_response`` here would re-normalize every activity (rebuilding
+    # per-activity map and booking links) just to read four scalars — wasted
+    # O(rows x activities) work on every call. ``record_to_list_item`` derives
+    # only what the list shows, with an identical grand-total computation.
+    items = [record_to_list_item(record) for record in rows]
     return ItineraryListResponse(
         page=page, per_page=per_page, total=total or 0, items=items
     )
