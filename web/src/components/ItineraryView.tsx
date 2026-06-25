@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { ItineraryResponse } from '../types/itinerary'
 import { saveItinerary } from '../api/client'
@@ -10,6 +10,13 @@ import CostBreakdown from './CostBreakdown'
 import PackingChecklist from './PackingChecklist'
 import ExportShareButton from './ExportShareButton'
 import ErrorBanner from './ErrorBanner'
+
+// Code-split the interactive map: Leaflet + its CSS are heavy and only loaded
+// when the traveler actually switches to the Map view, keeping the main bundle
+// (and the default List view) lean.
+const MapView = lazy(() => import('./MapView'))
+
+type ViewMode = 'list' | 'map'
 
 interface ItineraryViewProps {
   itinerary: ItineraryResponse
@@ -39,6 +46,7 @@ export default function ItineraryView({
     0,
   )
 
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [saveState, setSaveState] = useState<SaveState>(itinerary.saved ? 'saved' : 'idle')
   const [saveError, setSaveError] = useState<unknown>(null)
   const [showToast, setShowToast] = useState(false)
@@ -240,19 +248,69 @@ export default function ItineraryView({
         <CostBreakdown itinerary={itinerary} />
       </Reveal>
 
-      {/* Day cards */}
-      <div className="space-y-4">
-        {days.map((day, i) => (
-          <Reveal key={day.day_number} index={i}>
-            <DayCard
-              day={day}
-              grandTotal={grandTotal}
-              defaultOpen={i === 0}
-              destination={preferences.destination}
-            />
-          </Reveal>
-        ))}
+      {/* List | Map toggle — List is the default; Map lazy-loads Leaflet */}
+      <div
+        role="group"
+        aria-label="Itinerary view"
+        className="inline-flex rounded-full border border-ink-line bg-canvas-raised p-1"
+      >
+        <button
+          type="button"
+          onClick={() => setViewMode('list')}
+          aria-pressed={viewMode === 'list'}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-hover focus-visible:outline-none ${
+            viewMode === 'list'
+              ? 'bg-ink text-canvas'
+              : 'text-ink-soft hover:text-ink'
+          }`}
+        >
+          List
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode('map')}
+          aria-pressed={viewMode === 'map'}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-hover focus-visible:outline-none ${
+            viewMode === 'map'
+              ? 'bg-ink text-canvas'
+              : 'text-ink-soft hover:text-ink'
+          }`}
+        >
+          Map
+        </button>
       </div>
+
+      {viewMode === 'map' ? (
+        /* Map view */
+        <Reveal>
+          <Suspense
+            fallback={
+              <div
+                role="status"
+                className="flex h-[28rem] items-center justify-center rounded-2xl border border-ink-line bg-canvas-sunken text-sm text-ink-faint"
+              >
+                Loading map…
+              </div>
+            }
+          >
+            <MapView days={days} />
+          </Suspense>
+        </Reveal>
+      ) : (
+        /* Day cards */
+        <div className="space-y-4">
+          {days.map((day, i) => (
+            <Reveal key={day.day_number} index={i}>
+              <DayCard
+                day={day}
+                grandTotal={grandTotal}
+                defaultOpen={i === 0}
+                destination={preferences.destination}
+              />
+            </Reveal>
+          ))}
+        </div>
+      )}
 
       {/* Packing checklist */}
       <Reveal>

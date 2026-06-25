@@ -31,6 +31,11 @@ export interface Activity {
   estimated_cost_usd: number
   category: ActivityCategory
   map_url: string
+  // Optional geographic coordinates for the interactive map view. Null/absent
+  // when the model didn't supply them (or for itineraries stored before the
+  // field existed) — only activities with both are plotted as markers.
+  lat?: number | null
+  lng?: number | null
   // Optional affiliate/booking deep link (Terminal 4 backend may populate it).
   booking_url?: string
 }

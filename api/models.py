@@ -69,6 +69,12 @@ class Activity(BaseModel):
     estimated_cost_usd: float = Field(..., ge=0)
     category: ActivityCategory
     map_url: str
+    #: Geographic coordinates for plotting the activity on the interactive map.
+    #: Optional because the model only supplies them when it knows the place, and
+    #: itineraries stored before this field existed have no coords — both must
+    #: still validate, so each defaults to ``None``.
+    lat: float | None = None
+    lng: float | None = None
     #: Server-filled affiliate booking link (None until the engine attaches one).
     booking_url: str | None = None
 
