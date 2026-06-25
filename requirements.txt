@@ -28,6 +28,11 @@ google-genai>=1.0,<2
 # Optional cache backend (graceful fallback to in-memory if unreachable).
 redis>=5.0,<6
 
+# Prometheus client for the opt-in /metrics endpoint + request metrics
+# middleware. Pure-Python, ships universal wheels (prod-safe on the slim image);
+# only exercised when ENABLE_METRICS=true, so the default deploy never uses it.
+prometheus-client>=0.20,<1
+
 # PDF itinerary export — pure-Python (no native/system deps), ships universal
 # wheels, so it is prod-safe on the slim image. Imported lazily in
 # api/export.py; if absent, PDF export degrades to a clean 503 (mirrors the

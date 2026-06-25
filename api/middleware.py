@@ -7,17 +7,31 @@ CDN and uses inline styles/scripts) and the bundled React SPA functioning.
 
 ``RequestIDMiddleware`` accepts an inbound ``X-Request-ID`` (or generates a
 uuid4), stores it in the :data:`api.logging_config.request_id_var` contextvar so
-structured logs are correlated, and echoes it back on the response.
+structured logs are correlated, echoes it back on the response, and additionally
+captures the request path/method/client IP into their own contextvars so the
+JSON log formatter can stamp every line with them.
+
+``MetricsMiddleware`` records Prometheus request latency + count, labelled by the
+matched route template (NOT the raw path) to keep label cardinality bounded. It
+is opt-in: ``create_app`` only adds it (and registers the ``/metrics`` route)
+when ``Settings.enable_metrics`` is true, so the default deploy is unaffected.
 """
 
 from __future__ import annotations
 
+import time
 import uuid
 from typing import TYPE_CHECKING
 
+from prometheus_client import Counter, Histogram
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from api.logging_config import request_id_var
+from api.logging_config import (
+    client_ip_var,
+    request_id_var,
+    request_method_var,
+    request_path_var,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
@@ -26,6 +40,21 @@ if TYPE_CHECKING:
     from starlette.responses import Response
 
 _REQUEST_ID_HEADER = "X-Request-ID"
+
+
+def _client_ip(request: "Request") -> str | None:
+    """Best-effort client IP: first ``X-Forwarded-For`` hop, else peer host.
+
+    Render (and most proxies) put the originating client first in a comma-
+    separated ``X-Forwarded-For`` chain; we trust the first hop for logging
+    only. With no header we fall back to the direct peer (``request.client``).
+    """
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        first_hop = forwarded.split(",", 1)[0].strip()
+        if first_hop:
+            return first_hop
+    return request.client.host if request.client else None
 
 # CSP that keeps Swagger UI (/docs) and the SPA working. Swagger pulls its JS/CSS
 # from jsdelivr and uses inline script/style; the SPA loads same-origin assets,
@@ -73,7 +102,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
-    """Accept/generate a request id, stash it in a contextvar, echo it back."""
+    """Accept/generate a request id, stash request context, echo the id back.
+
+    Alongside the request id, the request path/method/client IP are captured
+    into their contextvars so the JSON log formatter stamps every line emitted
+    while handling the request. All contextvars are reset in ``finally`` so no
+    state leaks to the next request on the same task.
+    """
 
     async def dispatch(
         self,
@@ -82,10 +117,72 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     ) -> "Response":
         request_id = request.headers.get(_REQUEST_ID_HEADER) or uuid.uuid4().hex
         request.state.request_id = request_id
-        token = request_id_var.set(request_id)
+        id_token = request_id_var.set(request_id)
+        path_token = request_path_var.set(request.url.path)
+        method_token = request_method_var.set(request.method)
+        ip_token = client_ip_var.set(_client_ip(request))
         try:
             response = await call_next(request)
         finally:
-            request_id_var.reset(token)
+            request_id_var.reset(id_token)
+            request_path_var.reset(path_token)
+            request_method_var.reset(method_token)
+            client_ip_var.reset(ip_token)
         response.headers[_REQUEST_ID_HEADER] = request_id
+        return response
+
+
+# Module-level metric instances so both the middleware and the ``/metrics``
+# route share the same registry (the default global one). Defined at import time
+# but only ever updated when MetricsMiddleware is wired (opt-in), so importing
+# this module has no runtime effect on the default deploy.
+REQUEST_DURATION_SECONDS = Histogram(
+    "request_duration_seconds",
+    "HTTP request latency in seconds.",
+    labelnames=("method", "path", "status"),
+)
+REQUEST_COUNT = Counter(
+    "request_count",
+    "Total HTTP requests handled.",
+    labelnames=("method", "path", "status"),
+)
+
+
+def _route_template(request: "Request") -> str:
+    """Return the matched route template (e.g. ``/api/v1/itineraries/{id}``).
+
+    Using the template — not ``request.url.path`` — bounds metric label
+    cardinality: ``/api/v1/itineraries/{itinerary_id}`` is a single series no
+    matter how many distinct ids are requested. FastAPI's ``APIRoute`` stores
+    itself at ``scope['route']``; when that is absent (e.g. plain Starlette
+    routing, which only exposes ``scope['endpoint']``) we fall back to the
+    endpoint's qualified name, still a bounded label. A truly unmatched request
+    (a 404) falls back to ``"__unmatched__"``, again a single bounded label.
+    """
+    route = request.scope.get("route")
+    template = getattr(route, "path", None)
+    if template is not None:
+        return template
+    endpoint = request.scope.get("endpoint")
+    if endpoint is not None:
+        return getattr(endpoint, "__qualname__", None) or repr(endpoint)
+    return "__unmatched__"
+
+
+class MetricsMiddleware(BaseHTTPMiddleware):
+    """Record request latency + count, labelled by matched route template."""
+
+    async def dispatch(
+        self,
+        request: "Request",
+        call_next: "Callable[[Request], Awaitable[Response]]",
+    ) -> "Response":
+        start = time.perf_counter()
+        response = await call_next(request)
+        elapsed = time.perf_counter() - start
+        # ``request.scope['route']`` is populated by Starlette's routing during
+        # ``call_next``, so the template is available by the time we observe.
+        labels = (request.method, _route_template(request), str(response.status_code))
+        REQUEST_DURATION_SECONDS.labels(*labels).observe(elapsed)
+        REQUEST_COUNT.labels(*labels).inc()
         return response
