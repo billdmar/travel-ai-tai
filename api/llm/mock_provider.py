@@ -14,6 +14,7 @@ branches on a stable marker in the system prompt (the discovery schema names a
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from datetime import date, timedelta
@@ -23,6 +24,22 @@ from api.llm.provider import LLMProvider, LLMResult
 
 def _osm(place: str) -> str:
     return f"https://www.openstreetmap.org/search?query={place.replace(' ', '+')}"
+
+
+def _mock_base_coords(destination: str) -> tuple[float, float]:
+    """Derive a stable, plausible (lat, lng) anchor for a mock destination.
+
+    The mock's place names are destination-agnostic, so there are no real
+    coordinates to emit. Instead we deterministically hash the destination into
+    a point within populated mid-latitudes/longitudes — enough for the
+    interactive map demo and tests to show clustered pins that move when the
+    destination changes, without claiming geographic accuracy. A stable digest
+    (not the salted built-in ``hash``) keeps coords reproducible across runs.
+    """
+    h = int(hashlib.sha256(destination.encode("utf-8")).hexdigest(), 16)
+    lat = (h % 12000) / 100.0 - 60.0  # -60.0 .. +59.99
+    lng = (h // 12000 % 36000) / 100.0 - 180.0  # -180.0 .. +179.99
+    return round(lat, 4), round(lng, 4)
 
 
 def build_mock_itinerary(
@@ -61,12 +78,18 @@ def build_mock_itinerary(
         "Scenic Hilltop Walk",
         "Historic Market Quarter",
     ]
+    base_lat, base_lng = _mock_base_coords(destination)
     days = []
     total = 0.0
     for i in range(num_days):
         d = start + timedelta(days=i)
         sight = morning_sights[i % len(morning_sights)]
         walk = afternoon_walks[i % len(afternoon_walks)]
+        # Spread the day's three pins ~1-2km around the destination anchor (and
+        # nudge each day so multi-day trips don't stack markers) — purely so the
+        # map demo shows distinct, clustered points.
+        day_lat = round(base_lat + i * 0.01, 4)
+        day_lng = round(base_lng + i * 0.01, 4)
         activities = [
             {
                 "time": "09:00",
@@ -75,6 +98,8 @@ def build_mock_itinerary(
                 "estimated_cost_usd": 15.0,
                 "category": "attraction",
                 "map_url": _osm(f"{sight} {destination}"),
+                "lat": day_lat,
+                "lng": day_lng,
             },
             {
                 "time": "13:00",
@@ -83,6 +108,8 @@ def build_mock_itinerary(
                 "estimated_cost_usd": 25.0,
                 "category": "food",
                 "map_url": _osm(f"restaurant {destination}"),
+                "lat": round(day_lat + 0.008, 4),
+                "lng": round(day_lng - 0.006, 4),
             },
             {
                 "time": "16:00",
@@ -91,6 +118,8 @@ def build_mock_itinerary(
                 "estimated_cost_usd": 0.0,
                 "category": "leisure",
                 "map_url": _osm(f"{walk} {destination}"),
+                "lat": round(day_lat - 0.005, 4),
+                "lng": round(day_lng + 0.009, 4),
             },
         ]
         day_cost = sum(a["estimated_cost_usd"] for a in activities)
