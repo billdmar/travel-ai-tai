@@ -225,6 +225,100 @@ async def test_no_usable_candidate_returns_fallback(
     assert resp.json()["fallback"] is True
 
 
+async def test_repeated_query_served_from_cache(
+    monkeypatch, engine, sessionmaker
+) -> None:
+    """A second identical query within the TTL is served from cache.
+
+    The upstream handler counts its calls: the first request hits Unsplash, the
+    second returns the cached envelope without a second upstream call, and the
+    two response bodies are identical.
+    """
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200, json=_UNSPLASH_PAYLOAD)
+
+    _install_mock_transport(monkeypatch, handler)
+    app = _app(_settings(UNSPLASH_ACCESS_KEY="test-key"), sessionmaker)
+    async for client in _client(app):
+        first = await client.get("/api/v1/images", params={"query": "Tokyo"})
+        second = await client.get("/api/v1/images", params={"query": "Tokyo"})
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert calls["n"] == 1  # second request did NOT hit Unsplash
+    assert first.json() == second.json()
+    assert second.json()["fallback"] is False
+
+
+async def test_cache_key_is_case_and_whitespace_insensitive(
+    monkeypatch, engine, sessionmaker
+) -> None:
+    """Queries that normalize to the same upstream string share a cache entry."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200, json=_UNSPLASH_PAYLOAD)
+
+    _install_mock_transport(monkeypatch, handler)
+    app = _app(_settings(UNSPLASH_ACCESS_KEY="test-key"), sessionmaker)
+    async for client in _client(app):
+        await client.get("/api/v1/images", params={"query": "Tokyo"})
+        await client.get("/api/v1/images", params={"query": "  tokyo  "})
+
+    assert calls["n"] == 1  # normalized to the same key -> one upstream call
+
+
+async def test_different_queries_each_hit_upstream(
+    monkeypatch, engine, sessionmaker
+) -> None:
+    """Distinct queries are cached independently and each calls Unsplash once."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(200, json=_UNSPLASH_PAYLOAD)
+
+    _install_mock_transport(monkeypatch, handler)
+    app = _app(_settings(UNSPLASH_ACCESS_KEY="test-key"), sessionmaker)
+    async for client in _client(app):
+        await client.get("/api/v1/images", params={"query": "Tokyo"})
+        await client.get("/api/v1/images", params={"query": "Kyoto"})
+
+    assert calls["n"] == 2  # two distinct queries -> two upstream calls
+
+
+async def test_fallback_envelope_is_not_cached(
+    monkeypatch, engine, sessionmaker
+) -> None:
+    """A transient failure isn't pinned: a later success replaces the fallback.
+
+    First the upstream returns empty results (fallback); a second identical
+    request re-fetches (fallbacks aren't cached) and, now that upstream returns
+    a real payload, yields a non-fallback envelope.
+    """
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(200, json={"results": []})
+        return httpx.Response(200, json=_UNSPLASH_PAYLOAD)
+
+    _install_mock_transport(monkeypatch, handler)
+    app = _app(_settings(UNSPLASH_ACCESS_KEY="test-key"), sessionmaker)
+    async for client in _client(app):
+        first = await client.get("/api/v1/images", params={"query": "Tokyo"})
+        second = await client.get("/api/v1/images", params={"query": "Tokyo"})
+
+    assert first.json()["fallback"] is True
+    assert calls["n"] == 2  # fallback not cached -> upstream hit again
+    assert second.json()["fallback"] is False
+
+
 async def test_long_query_is_capped_upstream(
     monkeypatch, engine, sessionmaker
 ) -> None:
