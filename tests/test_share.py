@@ -12,13 +12,16 @@ Covers the frozen share contract:
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date, datetime, timezone
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from api.cache import ItineraryCache
 from api.config import Settings
-from api.db import ItineraryRecord, create_all
+from api.db import ItineraryRecord, ShareTokenRecord, create_all
 from api.llm.mock_provider import MockLLMProvider
 from api.models import TravelPreferences
 from api.recommend import RecommendationEngine
@@ -143,6 +146,64 @@ async def test_lookup_share_token_soft_deleted_parent_returns_none(tmp_path) -> 
         record.deleted_at = datetime.now(timezone.utc)
         await session.commit()
         assert await lookup_share_token(session, token) is None
+
+    await engine.dispose()
+
+
+async def test_concurrent_mint_returns_single_token(tmp_path) -> None:
+    """Two simultaneous mints for one itinerary yield exactly one token row.
+
+    Reproduces the share-token mint race: ``mint_share_token`` is a check-then-act
+    and ``share_tokens.itinerary_id`` has only a non-unique index, so before the
+    fix two concurrent calls both passed the existence check and both inserted —
+    leaving 2 rows / 2 distinct tokens (verified: the unfixed code returned
+    ``distinct == 2``, ``rows == 2``). The fix serializes the mint per itinerary,
+    so the second caller observes the first's committed token.
+
+    Backend note: the test uses a single shared in-memory SQLite engine
+    (``StaticPool``) with two sessions driven via :func:`asyncio.gather` on one
+    event loop. ``with_for_update`` is a no-op on SQLite, so the per-itinerary
+    ``asyncio.Lock`` is what closes the window here; on Postgres the row lock
+    serializes the same race across workers/processes.
+    """
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+        future=True,
+    )
+    await create_all(engine)
+    sm = async_sessionmaker(engine, expire_on_commit=False)
+    settings = Settings(
+        LLM_PROVIDER="mock",
+        OPENAI_API_KEY=None,
+        DATABASE_URL="sqlite+aiosqlite:///:memory:",
+    )
+    rec_engine = RecommendationEngine(
+        settings=settings, provider=MockLLMProvider(), cache=ItineraryCache(settings)
+    )
+
+    async with sm() as session:
+        created = await rec_engine.generate(_prefs(), session)
+    iid = str(created.id)
+
+    async def _mint() -> str | None:
+        # Each concurrent caller gets its own session, mirroring two requests.
+        async with sm() as session:
+            return await mint_share_token(session, iid)
+
+    first, second = await asyncio.gather(_mint(), _mint())
+
+    assert first is not None
+    assert first == second  # idempotent under concurrency
+
+    async with sm() as session:
+        row_count = await session.scalar(
+            select(func.count())
+            .select_from(ShareTokenRecord)
+            .where(ShareTokenRecord.itinerary_id == iid)
+        )
+    assert row_count == 1  # exactly one token row, no silent duplicate
 
     await engine.dispose()
 
