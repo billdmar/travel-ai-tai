@@ -19,11 +19,55 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: Lint
         run: ruff check api/ tests/
-      - name: Type-check (scoped, non-blocking)
-        run: mypy api/models.py api/llm/ || true
+      - name: Type-check (scoped, blocking)
+        run: mypy api/models.py api/llm/
       - name: Tests (mock provider — no API key needed)
-        run: pytest -q --cov=api --cov-report=term-missing --cov-report=xml
+        run: pytest -q --cov=api --cov-report=term-missing --cov-report=xml --cov-fail-under=90
         env:
+          LLM_PROVIDER: mock
+
+  backend-postgres:
+    # Exercises the Alembic migration chain + rollback against a real Postgres
+    # dialect (the documented prod backend). The fast `backend` job runs the
+    # full suite on SQLite; this job catches Postgres-specific migration bugs
+    # that SQLite cannot surface.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tai
+          POSTGRES_PASSWORD: tai
+          POSTGRES_DB: tai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tai"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - name: Migrations — upgrade to head on Postgres
+        run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://tai:tai@localhost:5432/tai_test
+      - name: Migrations — rollback one + re-upgrade (round-trip)
+        run: |
+          alembic downgrade -1
+          alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://tai:tai@localhost:5432/tai_test
+      - name: Persistence tests against Postgres
+        run: pytest -q tests/test_persistence_postgres.py
+        env:
+          DATABASE_URL: postgresql+asyncpg://tai:tai@localhost:5432/tai_test
           LLM_PROVIDER: mock
 
   frontend:
@@ -38,5 +82,5 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: cd web && npm ci
       - run: cd web && npm run build
-      - name: Unit tests (vitest)
-        run: cd web && npm run test
+      - name: Unit tests + coverage gate (vitest)
+        run: cd web && npm run test:cov
