@@ -21,9 +21,8 @@ import os
 # Force the mock provider before importing ``api.main`` (which builds a
 # module-level ``app = create_app()`` at import time). Without this, a developer
 # ``.env`` selecting ``LLM_PROVIDER=gemini`` would eagerly instantiate the
-# Gemini provider and pull in the EOL ``google-generativeai`` SDK, whose
-# import-time ``FutureWarning`` is promoted to an error by ``filterwarnings=error``.
-# Tests must be hermetic and network-free regardless of local env.
+# Gemini provider and load the ``google-genai`` SDK / a real client. Tests must
+# be hermetic and network-free regardless of local env.
 os.environ.setdefault("LLM_PROVIDER", "mock")
 
 from collections.abc import AsyncIterator  # noqa: E402
