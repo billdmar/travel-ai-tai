@@ -47,7 +47,9 @@ _GENERATED_ITINERARY_SCHEMA = """{
           "description": "one or two sentences",
           "estimated_cost_usd": 0.0,
           "category": "food | attraction | transport | accommodation | leisure | other",
-          "map_url": "https://www.openstreetmap.org/search?query=..."
+          "map_url": "https://www.openstreetmap.org/search?query=...",
+          "lat": 0.0,
+          "lng": 0.0
         }
       ]
     }
@@ -78,6 +80,9 @@ def build_system_prompt() -> str:
         "(the server recomputes this from the activities, so make them add up).\n"
         "- Provide a plausible `map_url` for each activity (the server overwrites "
         "it with a canonical Google Maps search link, so it need not be exact).\n"
+        "- Include numeric `lat` and `lng` (decimal degrees) for each activity "
+        "when you know the place's location, so it can be plotted on a map. Omit "
+        "both (or use null) if you are unsure — never guess coordinates.\n"
         "- Respect the traveler's budget, pace, interests, dietary and "
         "accessibility needs.\n"
         "- Return ONLY the JSON object."
