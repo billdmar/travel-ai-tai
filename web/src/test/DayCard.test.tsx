@@ -117,4 +117,29 @@ describe('DayCard', () => {
     await user.click(screen.getAllByRole('button', { name: /Move Fushimi Inari Shrine down/ })[0])
     expect(onReorder).toHaveBeenCalledWith(0, 1)
   })
+
+  it('omits the horizontal-scroll hint when the activity table fits', () => {
+    stubImageFetch()
+    // jsdom reports scrollWidth === clientWidth (0), so no overflow is detected.
+    render(<DayCard day={makeDay()} defaultOpen />)
+    expect(screen.queryByText(/Scroll for links/)).not.toBeInTheDocument()
+  })
+
+  it('shows the "scroll for links" hint when the table overflows horizontally', async () => {
+    stubImageFetch()
+    // Force the overflow measurement: the scroll container is wider than its box.
+    const scrollWidthSpy = vi
+      .spyOn(HTMLElement.prototype, 'scrollWidth', 'get')
+      .mockReturnValue(900)
+    const clientWidthSpy = vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockReturnValue(640)
+    try {
+      render(<DayCard day={makeDay()} defaultOpen />)
+      expect(await screen.findByText(/Scroll for links/)).toBeInTheDocument()
+    } finally {
+      scrollWidthSpy.mockRestore()
+      clientWidthSpy.mockRestore()
+    }
+  })
 })

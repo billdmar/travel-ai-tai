@@ -75,6 +75,9 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
   const [error, setError] = useState<unknown>(null)
   const [selected, setSelected] = useState<ItineraryResponse | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  // The id whose delete request is in flight; disables its Confirm button so a
+  // slow network can't fire a second delete from a double-click.
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   // Ids picked for side-by-side comparison; seeded from localStorage so the
   // choice survives a reload.
   const [compareIds, setCompareIds] = useState<string[]>(() => readSelection())
@@ -111,13 +114,19 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
   }
 
   async function remove(id: string) {
+    if (deletingId) return
     setError(null)
-    setConfirmId(null)
+    // Keep the confirm row mounted (don't clear confirmId yet) so its button can
+    // show the disabled in-flight state; both are reset once the delete settles.
+    setDeletingId(id)
     try {
       await deleteItinerary(id)
+      setConfirmId(null)
       await load(page)
     } catch (err) {
       setError(err)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -271,10 +280,12 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
                         <button
                           type="button"
                           onClick={() => remove(it.id)}
+                          disabled={deletingId === it.id}
+                          aria-busy={deletingId === it.id}
                           aria-label={`Confirm delete itinerary for ${it.destination}`}
-                          className="rounded-full bg-red-600 px-3.5 py-1.5 text-sm font-medium text-white transition-colors duration-hover hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                          className="rounded-full bg-red-600 px-3.5 py-1.5 text-sm font-medium text-white transition-colors duration-hover hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
                         >
-                          Confirm?
+                          {deletingId === it.id ? 'Deleting…' : 'Confirm?'}
                         </button>
                         <button
                           type="button"
