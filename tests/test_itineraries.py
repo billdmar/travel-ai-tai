@@ -124,6 +124,75 @@ def test_regenerate_wires_create_write_rate_limit(app) -> None:
     assert rate_limit in regen_deps
 
 
+async def test_concurrent_save_keeps_original_timestamp(
+    client, sessionmaker, monkeypatch
+) -> None:
+    # Lost-update regression guard. Reproduces the classic interleaving where
+    # two saves of the same draft both observe ``saved_at IS NULL`` before
+    # either persists, then both stamp it. With a monotonic clock minting a
+    # strictly-later instant on every ``datetime.now()`` call, a lost update is
+    # observable: the SECOND writer's later timestamp would clobber the first.
+    #
+    # Writer B carries a STALE view (it loaded the row as a draft, holding
+    # ``saved_at = None`` in its identity map) and only commits AFTER writer A
+    # has saved+committed — exactly the moment a read-modify-write does damage,
+    # since B's in-Python ``record.saved_at is None`` check is satisfied by its
+    # stale snapshot and it writes its own (later) timestamp on top of A's.
+    #
+    # The conditional UPDATE this guards re-evaluates ``saved_at IS NULL`` AT
+    # THE DATABASE, so B's UPDATE matches no rows and A's earlier stamp survives.
+    # Against the replaced read-modify-write, B clobbers A and this test fails.
+    import itertools
+    from datetime import datetime, timezone
+    from uuid import UUID
+
+    from api.db import ItineraryRecord
+    from api.routes.itineraries import save_itinerary
+
+    created = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    iid = created["id"]
+
+    # Monotonic clock: each call yields a strictly later instant (microsecond++),
+    # so the first and second stamps are distinguishable.
+    base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    counter = itertools.count()
+    monkeypatch.setattr(
+        "api.routes.itineraries.datetime",
+        type(
+            "_Clock",
+            (),
+            {"now": staticmethod(lambda tz=None: base.replace(microsecond=next(counter)))},
+        ),
+    )
+
+    # Writer B opens its session FIRST and reads the still-unsaved row, capturing
+    # the stale ``saved_at = None`` snapshot in its identity map.
+    session_b = sessionmaker()
+    await session_b.__aenter__()
+    stale = await session_b.get(ItineraryRecord, iid)
+    assert stale is not None and stale.saved_at is None
+
+    # Writer A saves and commits on its own session — first stamp lands.
+    async with sessionmaker() as session_a:
+        await save_itinerary(UUID(iid), session=session_a)
+
+    async with sessionmaker() as probe:
+        first_stamp = (await probe.get(ItineraryRecord, iid)).saved_at
+    assert first_stamp is not None
+
+    # Writer B now saves on its stale session. A read-modify-write would see its
+    # cached None and overwrite A's stamp with a later one; the conditional
+    # UPDATE no-ops because saved_at is already set at the DB.
+    try:
+        await save_itinerary(UUID(iid), session=session_b)
+    finally:
+        await session_b.__aexit__(None, None, None)
+
+    async with sessionmaker() as probe:
+        final_stamp = (await probe.get(ItineraryRecord, iid)).saved_at
+    assert final_stamp == first_stamp, "second save must not clobber original timestamp"
+
+
 async def test_list_envelope(client) -> None:
     # The list returns ONLY saved itineraries, so save both before asserting.
     a = (await client.post("/api/v1/itineraries", json=_payload())).json()
