@@ -91,12 +91,12 @@ function CustomNeedsField({ noun, curated, selected, onChange }: CustomNeedsFiel
           }}
           aria-label={`Add a custom ${noun}`}
           placeholder={`Add another ${noun}…`}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          className="w-full rounded-lg border border-ink-line px-3 py-2 text-sm focus-visible:border-accent-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-100"
         />
         <button
           type="button"
           onClick={add}
-          className="shrink-0 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          className="shrink-0 rounded-lg border border-ink-line px-4 py-2 text-sm font-medium text-ink-soft transition hover:bg-canvas-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
         >
           Add
         </button>
@@ -105,13 +105,13 @@ function CustomNeedsField({ noun, curated, selected, onChange }: CustomNeedsFiel
         <ul className="mt-2 flex flex-wrap gap-2">
           {customValues.map((value) => (
             <li key={value}>
-              <span className="inline-flex items-center gap-1 rounded-full border border-brand-500 bg-brand-50 py-1 pl-3 pr-1 text-sm text-slate-700">
+              <span className="inline-flex items-center gap-1 rounded-full border border-accent-500 bg-accent-50 py-1 pl-3 pr-1 text-sm text-ink-soft">
                 {value}
                 <button
                   type="button"
                   onClick={() => onChange(selected.filter((v) => v !== value))}
                   aria-label={`Remove ${value}`}
-                  className="rounded-full px-1.5 text-slate-500 transition hover:bg-brand-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                  className="rounded-full px-1.5 text-ink-faint transition hover:bg-accent-100 hover:text-ink-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
                 >
                   ×
                 </button>
@@ -191,18 +191,18 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
   const progress = (step / TOTAL_STEPS) * 100
 
   return (
-    <div className="mx-auto max-w-2xl rounded-xl border border-slate-200 bg-white p-6 shadow-md sm:p-8">
+    <div className="mx-auto max-w-2xl rounded-xl border border-ink-line bg-canvas-raised p-6 shadow-frame sm:p-8">
       {/* Progress bar */}
       <div className="mb-6">
-        <div className="mb-2 flex items-center justify-between text-sm font-medium text-slate-600">
+        <div className="mb-2 flex items-center justify-between text-sm font-medium text-ink-soft">
           <span>
             Step {step} of {TOTAL_STEPS}
           </span>
           <span>{Math.round(progress)}%</span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-canvas-sunken">
           <div
-            className="h-full rounded-full bg-brand-600 transition-all duration-300"
+            className="h-full rounded-full bg-accent-500 transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -210,35 +210,35 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
 
       {step === 1 && (
         <section className="space-y-5">
-          <h2 className="text-xl font-semibold text-slate-800">Where & when?</h2>
+          <h2 className="text-xl font-semibold text-ink">Where & when?</h2>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Destination</label>
+            <label className="mb-1 block text-sm font-medium text-ink-soft">Destination</label>
             <input
               type="text"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               placeholder="e.g. Tokyo, Japan"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-lg border border-ink-line px-3 py-2 focus-visible:border-accent-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-100"
             />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Start date</label>
+              <label className="mb-1 block text-sm font-medium text-ink-soft">Start date</label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-line px-3 py-2 focus-visible:border-accent-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-100"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">End date</label>
+              <label className="mb-1 block text-sm font-medium text-ink-soft">End date</label>
               <input
                 type="date"
                 value={endDate}
                 min={startDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+                className="w-full rounded-lg border border-ink-line px-3 py-2 focus-visible:border-accent-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-100"
               />
             </div>
           </div>
@@ -247,11 +247,11 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
 
       {step === 2 && (
         <section className="space-y-6">
-          <h2 className="text-xl font-semibold text-slate-800">Budget & group</h2>
+          <h2 className="text-xl font-semibold text-ink">Budget & group</h2>
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">Budget (per person)</label>
-              <span className="font-semibold text-brand-700">${budget.toLocaleString()}</span>
+              <label className="text-sm font-medium text-ink-soft">Budget (per person)</label>
+              <span className="font-semibold text-accent-700">${budget.toLocaleString()}</span>
             </div>
             <input
               type="range"
@@ -260,17 +260,17 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               step={100}
               value={budget}
               onChange={(e) => setBudget(Number(e.target.value))}
-              className="w-full accent-brand-600"
+              className="w-full accent-accent-500"
             />
-            <div className="flex justify-between text-xs text-slate-500">
+            <div className="flex justify-between text-xs text-ink-faint">
               <span>$100</span>
               <span>$10,000</span>
             </div>
           </div>
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-sm font-medium text-slate-700">Group size</label>
-              <span className="font-semibold text-brand-700">
+              <label className="text-sm font-medium text-ink-soft">Group size</label>
+              <span className="font-semibold text-accent-700">
                 {groupSize} {groupSize === 1 ? 'traveler' : 'travelers'}
               </span>
             </div>
@@ -281,23 +281,23 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
               step={1}
               value={groupSize}
               onChange={(e) => setGroupSize(Number(e.target.value))}
-              className="w-full accent-brand-600"
+              className="w-full accent-accent-500"
             />
-            <div className="flex justify-between text-xs text-slate-500">
+            <div className="flex justify-between text-xs text-ink-faint">
               <span>1</span>
               <span>20</span>
             </div>
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Travel style</p>
+            <p className="mb-2 text-sm font-medium text-ink-soft">Travel style</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {TRAVEL_STYLES.map((opt) => (
                 <label
                   key={opt.value}
-                  className={`relative cursor-pointer rounded-lg border p-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${
+                  className={`relative cursor-pointer rounded-lg border p-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-500 ${
                     travelStyle === opt.value
-                      ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100'
-                      : 'border-slate-300 hover:border-slate-400'
+                      ? 'border-accent-500 bg-accent-50 ring-2 ring-accent-100'
+                      : 'border-ink-line hover:border-ink-faint'
                   }`}
                 >
                   <input
@@ -311,13 +311,13 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                   {travelStyle === opt.value && (
                     <span
                       aria-hidden="true"
-                      className="absolute right-2 top-2 text-brand-600"
+                      className="absolute right-2 top-2 text-accent-600"
                     >
                       ✓
                     </span>
                   )}
-                  <span className="block font-semibold text-slate-800">{opt.label}</span>
-                  <span className="mt-1 block text-xs text-slate-500">{opt.hint}</span>
+                  <span className="block font-semibold text-ink">{opt.label}</span>
+                  <span className="mt-1 block text-xs text-ink-faint">{opt.hint}</span>
                 </label>
               ))}
             </div>
@@ -327,17 +327,17 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
 
       {step === 3 && (
         <section className="space-y-6">
-          <h2 className="text-xl font-semibold text-slate-800">Pace & interests</h2>
+          <h2 className="text-xl font-semibold text-ink">Pace & interests</h2>
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Pace</p>
+            <p className="mb-2 text-sm font-medium text-ink-soft">Pace</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {PACES.map((opt) => (
                 <label
                   key={opt.value}
-                  className={`relative cursor-pointer rounded-lg border p-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand-500 ${
+                  className={`relative cursor-pointer rounded-lg border p-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent-500 ${
                     pace === opt.value
-                      ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100'
-                      : 'border-slate-300 hover:border-slate-400'
+                      ? 'border-accent-500 bg-accent-50 ring-2 ring-accent-100'
+                      : 'border-ink-line hover:border-ink-faint'
                   }`}
                 >
                   <input
@@ -349,18 +349,18 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                     className="sr-only"
                   />
                   {pace === opt.value && (
-                    <span aria-hidden="true" className="absolute right-2 top-2 text-brand-600">
+                    <span aria-hidden="true" className="absolute right-2 top-2 text-accent-600">
                       ✓
                     </span>
                   )}
-                  <span className="block font-semibold text-slate-800">{opt.label}</span>
-                  <span className="mt-1 block text-xs text-slate-500">{opt.hint}</span>
+                  <span className="block font-semibold text-ink">{opt.label}</span>
+                  <span className="mt-1 block text-xs text-ink-faint">{opt.hint}</span>
                 </label>
               ))}
             </div>
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Interests</p>
+            <p className="mb-2 text-sm font-medium text-ink-soft">Interests</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {INTEREST_OPTIONS.map((opt) => {
                 const checked = interests.includes(opt)
@@ -369,17 +369,17 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                     key={opt}
                     className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
                       checked
-                        ? 'border-brand-500 bg-brand-50'
-                        : 'border-slate-300 hover:border-slate-400'
+                        ? 'border-accent-500 bg-accent-50'
+                        : 'border-ink-line hover:border-ink-faint'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => setInterests((cur) => toggle(cur, opt))}
-                      className="accent-brand-600"
+                      className="accent-accent-500"
                     />
-                    <span className="text-slate-700">{opt}</span>
+                    <span className="text-ink-soft">{opt}</span>
                   </label>
                 )
               })}
@@ -390,9 +390,9 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
 
       {step === 4 && (
         <section className="space-y-6">
-          <h2 className="text-xl font-semibold text-slate-800">Needs & notes</h2>
+          <h2 className="text-xl font-semibold text-ink">Needs & notes</h2>
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Dietary needs</p>
+            <p className="mb-2 text-sm font-medium text-ink-soft">Dietary needs</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {DIETARY_OPTIONS.map((opt) => {
                 const checked = dietary.includes(opt)
@@ -401,17 +401,17 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                     key={opt}
                     className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
                       checked
-                        ? 'border-brand-500 bg-brand-50'
-                        : 'border-slate-300 hover:border-slate-400'
+                        ? 'border-accent-500 bg-accent-50'
+                        : 'border-ink-line hover:border-ink-faint'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => setDietary((cur) => toggle(cur, opt))}
-                      className="accent-brand-600"
+                      className="accent-accent-500"
                     />
-                    <span className="text-slate-700">{opt}</span>
+                    <span className="text-ink-soft">{opt}</span>
                   </label>
                 )
               })}
@@ -424,7 +424,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
             />
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium text-slate-700">Accessibility needs</p>
+            <p className="mb-2 text-sm font-medium text-ink-soft">Accessibility needs</p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {ACCESSIBILITY_OPTIONS.map((opt) => {
                 const checked = accessibility.includes(opt)
@@ -433,17 +433,17 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
                     key={opt}
                     className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
                       checked
-                        ? 'border-brand-500 bg-brand-50'
-                        : 'border-slate-300 hover:border-slate-400'
+                        ? 'border-accent-500 bg-accent-50'
+                        : 'border-ink-line hover:border-ink-faint'
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => setAccessibility((cur) => toggle(cur, opt))}
-                      className="accent-brand-600"
+                      className="accent-accent-500"
                     />
-                    <span className="text-slate-700">{opt}</span>
+                    <span className="text-ink-soft">{opt}</span>
                   </label>
                 )
               })}
@@ -456,13 +456,13 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Notes (optional)</label>
+            <label className="mb-1 block text-sm font-medium text-ink-soft">Notes (optional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               placeholder="Anything else we should know? e.g. traveling with kids, prefer mornings free..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              className="w-full rounded-lg border border-ink-line px-3 py-2 focus-visible:border-accent-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-100"
             />
           </div>
         </section>
@@ -478,7 +478,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
           type="button"
           onClick={back}
           disabled={step === 1 || submitting}
-          className="rounded-lg border border-slate-300 px-5 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg border border-ink-line px-5 py-2 font-medium text-ink-soft transition hover:bg-canvas-sunken focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Back
         </button>
@@ -487,7 +487,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
           <button
             type="button"
             onClick={next}
-            className="rounded-lg bg-brand-600 px-6 py-2 font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            className="rounded-lg bg-accent-500 px-6 py-2 font-medium text-white transition hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2"
           >
             Next
           </button>
@@ -496,7 +496,7 @@ export default function PreferenceForm({ onSubmit, submitting }: PreferenceFormP
             type="button"
             onClick={handleGenerate}
             disabled={submitting}
-            className="rounded-lg bg-brand-600 px-6 py-2 font-medium text-white transition hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-accent-500 px-6 py-2 font-medium text-white transition hover:bg-accent-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? 'Generating…' : 'Generate itinerary'}
           </button>
