@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import get_session
 from api.llm.streaming import stream_itinerary
-from api.models import ItineraryResponse, TravelPreferences
+from api.models import ErrorResponse, ItineraryResponse, TravelPreferences
 from api.recommend import (
     ItineraryParseError,
     LLMUnavailableError,
@@ -40,6 +40,19 @@ router = APIRouter(prefix="/api/v1", tags=["stream"])
 
 def _engine(request: Request) -> RecommendationEngine:
     return request.app.state.engine
+
+
+def _error_event(code: str) -> str:
+    """Serialize an in-band SSE error payload, validated against the schema.
+
+    Status is already 200 once streaming has started, so failures must travel
+    in-band as a ``data:`` line. Routing the payload through
+    :class:`~api.models.ErrorResponse` (the same envelope the non-streaming
+    routes document) guarantees a malformed error event can never silently
+    ship — and ``exclude_none`` keeps the wire body byte-identical to the
+    historical ``{"error": "<code>"}`` the frozen client expects.
+    """
+    return json.dumps(ErrorResponse(error=code).model_dump(exclude_none=True))
 
 
 def _sse(data: str) -> str:
@@ -69,19 +82,36 @@ async def _event_source(
         async for item in stream_itinerary(engine, prefs, session):
             if isinstance(item, ItineraryResponse):
                 # Terminal event: the full itinerary as JSON (the client parses
-                # the last data line as ItineraryResponse).
+                # the last data line as ItineraryResponse). It is already a
+                # validated model, so ``model_dump_json`` is schema-correct by
+                # construction.
                 yield _sse(item.model_dump_json())
             else:
+                # Progress events are plain-text strings by contract; assert the
+                # declared shape so a non-str chunk can't silently ship past the
+                # frozen ``onChunk`` callback.
+                if not isinstance(item, str):  # pragma: no cover - defensive
+                    raise TypeError(
+                        f"progress chunk must be str, got {type(item).__name__}"
+                    )
                 yield _sse(item)
     except LLMUnavailableError as exc:
         logger.warning("stream llm_unavailable: %s", exc)
-        yield _sse(json.dumps({"error": "llm_unavailable"}))
+        yield _sse(_error_event("llm_unavailable"))
     except ItineraryParseError as exc:
         logger.warning("stream itinerary_parse_failed: %s", exc)
-        yield _sse(json.dumps({"error": "itinerary_parse_failed"}))
+        yield _sse(_error_event("itinerary_parse_failed"))
 
 
-@router.post("/itineraries/stream")
+@router.post(
+    "/itineraries/stream",
+    responses={
+        422: {
+            "model": ErrorResponse,
+            "description": "Invalid travel preferences (rejected before streaming).",
+        },
+    },
+)
 async def stream_itinerary_endpoint(
     request: Request,
     preferences: TravelPreferences,
@@ -90,7 +120,10 @@ async def stream_itinerary_endpoint(
     """Stream a personalized itinerary as Server-Sent Events.
 
     Returns ``text/event-stream``; the final event carries the full
-    ``ItineraryResponse`` JSON.
+    ``ItineraryResponse`` JSON. Once the 200 stream has started, provider
+    failures arrive in-band as an :class:`~api.models.ErrorResponse` ``data:``
+    event (``llm_unavailable`` / ``itinerary_parse_failed``) rather than an HTTP
+    error status.
     """
     engine = _engine(request)
     return StreamingResponse(

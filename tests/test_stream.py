@@ -10,8 +10,10 @@ provider is unavailable.
 
 from __future__ import annotations
 
-from api.models import ItineraryResponse
-from api.recommend import LLMUnavailableError
+import json
+
+from api.models import ErrorResponse, ItineraryResponse
+from api.recommend import ItineraryParseError, LLMUnavailableError
 
 
 def _payload(**overrides) -> dict:
@@ -92,4 +94,26 @@ async def test_stream_llm_unavailable_emits_error_event(client, app) -> None:
     assert resp.status_code == 200
     data_lines = _data_lines(resp.text)
     assert data_lines, "expected at least one data event"
-    assert '"error": "llm_unavailable"' in data_lines[-1]
+
+    # The error event is schema-valid (validates against the shared envelope)
+    # and its wire body is byte-identical to the historical {"error": "<code>"}
+    # the frozen client expects (no extra null fields leak in).
+    payload = json.loads(data_lines[-1])
+    assert payload == {"error": "llm_unavailable"}
+    assert ErrorResponse.model_validate(payload).error == "llm_unavailable"
+
+
+async def test_stream_parse_failure_emits_schema_valid_error_event(client, app) -> None:
+    """A mid-stream ItineraryParseError surfaces as a schema-valid error event."""
+
+    class _BadParseEngine:
+        async def generate(self, *_args, **_kwargs):
+            raise ItineraryParseError("bad json")
+
+    app.state.engine = _BadParseEngine()
+
+    resp = await client.post("/api/v1/itineraries/stream", json=_payload())
+    assert resp.status_code == 200
+    payload = json.loads(_data_lines(resp.text)[-1])
+    assert payload == {"error": "itinerary_parse_failed"}
+    assert ErrorResponse.model_validate(payload).error == "itinerary_parse_failed"
