@@ -1,12 +1,13 @@
 """Itinerary export router (BE-EXPORT).
 
 Frozen endpoint:
-    GET /api/v1/itineraries/{id}/export?format=markdown|pdf
+    GET /api/v1/itineraries/{id}/export?format=markdown|pdf|ics
 
 Streams the itinerary back as a file download (correct ``Content-Type`` and a
 ``Content-Disposition: attachment`` filename). 404 when the itinerary is missing
 or soft-deleted; 422 for an unsupported ``format``; 503 if PDF is requested but
-the optional ``fpdf2`` library is not installed in this deployment.
+the optional ``fpdf2`` library is not installed in this deployment. The ``ics``
+format (an RFC 5545 calendar) is pure stdlib and so is always available.
 """
 
 from __future__ import annotations
@@ -19,7 +20,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import ItineraryRecord, get_session
-from api.export import PDFExportUnavailable, render_markdown, render_pdf
+from api.export import (
+    PDFExportUnavailable,
+    render_ics,
+    render_markdown,
+    render_pdf,
+)
 from api.ratelimit import rate_limit_export
 from api.recommend import record_to_response
 
@@ -40,10 +46,10 @@ def _slug(destination: str) -> str:
 )
 async def export_itinerary(
     itinerary_id: UUID,
-    format: Literal["markdown", "pdf"] = "markdown",
+    format: Literal["markdown", "pdf", "ics"] = "markdown",
     session: AsyncSession = Depends(get_session),
 ) -> Response:
-    """Download an itinerary as Markdown or PDF.
+    """Download an itinerary as Markdown, PDF, or an ICS calendar.
 
     The ``format`` query param is validated by FastAPI against the ``Literal``,
     so any other value yields a 422 before this handler runs.
@@ -62,6 +68,10 @@ async def export_itinerary(
         body = render_markdown(itinerary).encode("utf-8")
         media_type = "text/markdown; charset=utf-8"
         filename = f"{stem}.md"
+    elif format == "ics":
+        body = render_ics(itinerary).encode("utf-8")
+        media_type = "text/calendar; charset=utf-8"
+        filename = f"{stem}.ics"
     else:  # "pdf" — the Literal guarantees no other value reaches here.
         try:
             body = render_pdf(itinerary)
