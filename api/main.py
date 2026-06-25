@@ -41,6 +41,7 @@ from api.routes import export as export_routes
 from api.routes import health as health_routes
 from api.routes import images as image_routes
 from api.routes import itineraries as itinerary_routes
+from api.routes import og as og_routes
 from api.routes import share as share_routes
 from api.routes import stream as stream_routes
 
@@ -154,6 +155,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(share_routes.router)
     app.include_router(stream_routes.router)
     app.include_router(curated_destinations_routes.router)
+    app.include_router(og_routes.router)
     if destinations_router is not None:
         app.include_router(destinations_router)
     # Opt-in /metrics endpoint (registered only when ENABLE_METRICS=true).
