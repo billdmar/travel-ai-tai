@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Activity, ActivityCategory, ItineraryDay } from '../types/itinerary'
 import { money } from '../lib/format'
 import { DestinationImage } from './DestinationImage'
@@ -20,6 +20,33 @@ interface DayCardProps {
   onReorder?: (from: number, to: number) => void
   /** Remove the activity at `index` within this day. */
   onRemove?: (index: number) => void
+}
+
+/**
+ * Tracks whether an element scrolls horizontally (content wider than the box).
+ * Used to show a "scroll for links" hint on the activity table at the medium
+ * widths where its columns overflow but no scrollbar is obvious. Re-measures on
+ * viewport resize via a ResizeObserver (with a graceful fallback when absent).
+ */
+function useHorizontalOverflow<T extends HTMLElement>(
+  ref: React.RefObject<T | null>,
+  enabled: boolean,
+): boolean {
+  const [overflowing, setOverflowing] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!enabled || !el) {
+      setOverflowing(false)
+      return
+    }
+    const measure = () => setOverflowing(el.scrollWidth > el.clientWidth + 1)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref, enabled])
+  return overflowing
 }
 
 /**
@@ -210,6 +237,11 @@ export default function DayCard({
   const [open, setOpen] = useState(defaultOpen)
   const activityCount = day.activities.length
 
+  // The sm+ activity table scrolls horizontally on medium viewports; surface a
+  // hint so the off-screen Links column is discoverable.
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const tableOverflowing = useHorizontalOverflow(tableScrollRef, open)
+
   const dayTotal = day.activities.reduce((sum, a) => sum + a.estimated_cost_usd, 0)
   const sharePct = grandTotal && grandTotal > 0 ? (dayTotal / grandTotal) * 100 : 0
 
@@ -308,7 +340,15 @@ export default function DayCard({
           </ul>
 
           {/* sm+ : table */}
-          <div className="hidden overflow-x-auto sm:block">
+          <div ref={tableScrollRef} className="hidden overflow-x-auto sm:block">
+            {tableOverflowing && (
+              <p
+                role="status"
+                className="mb-1.5 hidden text-right text-[11px] font-medium text-ink-faint sm:block"
+              >
+                Scroll for links &rarr;
+              </p>
+            )}
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">
