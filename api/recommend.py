@@ -16,7 +16,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
@@ -161,16 +160,27 @@ class RecommendationEngine:
         generated = normalize_generated(generated, prefs, self._settings)
 
         itinerary_id = uuid4()
-        created_at = datetime.now(timezone.utc)
         # Trust the provider-reported usage; mock reports None, which we record
         # as 0 to distinguish "no model call" from "unknown".
         tokens_used = (
             0 if self._provider.name == "mock" else result.tokens_used
         )
 
+        # ``created_at`` is owned by the database (server_default=now()), so we
+        # persist first and read the DB-assigned timestamp back off the row when
+        # assembling the response — keeping the one authoritative value rather
+        # than a separately-computed client clock.
+        record = await self._persist(
+            itinerary_id=itinerary_id,
+            prefs=prefs,
+            generated=generated,
+            tokens_used=tokens_used,
+            session=session,
+        )
+
         response = ItineraryResponse.from_generated(
             id=itinerary_id,
-            created_at=created_at,
+            created_at=record.created_at,
             preferences=prefs,
             generated=generated,
             provider=self._provider.name,  # type: ignore[arg-type]
@@ -179,7 +189,6 @@ class RecommendationEngine:
             fallback_reason=result.fallback_reason,
         )
 
-        await self._persist(response, session)
         await self._cache.set(key, str(itinerary_id))
         logger.info(
             "itinerary generated id=%s provider=%s key=%s",
@@ -201,28 +210,33 @@ class RecommendationEngine:
             return None
         return record_to_response(record)
 
-    @staticmethod
     async def _persist(
-        response: ItineraryResponse, session: AsyncSession
-    ) -> None:
-        """Insert the itinerary as a new row."""
-        generated = GeneratedItinerary(
-            days=response.days,
-            total_estimated_cost_usd=response.total_estimated_cost_usd,
-            currency=response.currency,
-            summary=response.summary,
-            tips=response.tips,
-        )
+        self,
+        *,
+        itinerary_id: UUID,
+        prefs: TravelPreferences,
+        generated: GeneratedItinerary,
+        tokens_used: int | None,
+        session: AsyncSession,
+    ) -> ItineraryRecord:
+        """Insert the itinerary as a new row and return it with ``created_at``.
+
+        ``created_at`` is left unset so the database server_default (``now()``)
+        supplies it; we ``refresh`` the row after commit to load that
+        DB-assigned, timezone-aware timestamp back onto the instance for the
+        caller to surface in the response.
+        """
         record = ItineraryRecord(
-            id=str(response.id),
-            created_at=response.created_at,
-            preferences_json=response.preferences.model_dump_json(),
+            id=str(itinerary_id),
+            preferences_json=prefs.model_dump_json(),
             itinerary_json=generated.model_dump_json(),
-            provider=response.provider,
-            tokens_used=response.tokens_used,
+            provider=self._provider.name,
+            tokens_used=tokens_used,
         )
         session.add(record)
         await session.commit()
+        await session.refresh(record)
+        return record
 
 
 def record_to_list_item(record: ItineraryRecord) -> ItineraryListItem:

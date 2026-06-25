@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import Request
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -38,7 +38,15 @@ class ItineraryRecord(Base):
     # Indexed: the Saved list orders by created_at DESC (see
     # api/routes/itineraries.py list_itineraries) so the most-recent page can be
     # served from the index rather than a full scan + sort.
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    #
+    # Server-owned timestamp: the database stamps the insert via its own
+    # ``now()`` (server_default) so the value is authoritative at the DB and
+    # consistent across app instances/clocks — the engine no longer sets it in
+    # Python. ``func.now()`` is timezone-aware on Postgres (the documented prod
+    # backend); the app reads it back via ``session.refresh`` after insert.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True, server_default=func.now()
+    )
     preferences_json: Mapped[str] = mapped_column(Text)
     itinerary_json: Mapped[str] = mapped_column(Text)
     provider: Mapped[str] = mapped_column(String(32))
