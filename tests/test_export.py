@@ -287,3 +287,34 @@ def test_render_ics_emits_one_event_per_activity_across_days() -> None:
         ).days[0]
     )
     assert len(_parse_ics(render_ics(itinerary))) == 3
+
+
+def test_render_ics_multibyte_title_has_no_space_only_continuation_lines() -> None:
+    """Folding a multi-byte (emoji/CJK) title must not emit space-only lines.
+
+    Regression: ``_fold_line`` cuts on 75/74-octet boundaries that can land
+    mid-character. A continuation chunk whose only bytes are an incomplete
+    UTF-8 sequence used to decode to ``""`` and still be appended as ``" "``
+    (space + empty), producing a space-only continuation line that violates
+    RFC 5545 §3.1. We assert no folded line is space-only and the calendar
+    still re-parses with one VEVENT per activity.
+    """
+    itinerary = _sample_itinerary()
+    # A long emoji-laden place name forces a >75-octet content line whose folds
+    # land on 4-byte emoji boundaries — the exact case that bred the empty chunk.
+    itinerary.days[0].activities[0].place = "Sushi " + "🍣" * 30
+    ics = render_ics(itinerary)
+
+    # No physical line may be a single space (a space-only continuation line).
+    for line in ics.split("\r\n"):
+        assert line != " ", "found a space-only continuation line"
+        # A continuation line is a space followed by payload; that payload must
+        # be non-empty (otherwise the line carries no folded content).
+        if line.startswith(" "):
+            assert line[1:] != "", "continuation line has empty payload"
+
+    # And the folded output still re-parses as one VEVENT for the one activity.
+    events = _parse_ics(ics)
+    assert len(events) == 1
+    # The unfolded SUMMARY round-trips the emoji intact (no dropped code points).
+    assert "🍣" in events[0]["SUMMARY"]

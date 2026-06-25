@@ -277,8 +277,14 @@ def _decode_chunks(chunks: list[bytes]) -> str:
                 data = data[:-1]
         else:
             text = ""
-        prefix = "" if i == 0 else " "
-        out.append(prefix + text)
+        # Only emit a line when there is decoded text to carry. A continuation
+        # chunk can trim to empty after deferring its bytes as an incomplete
+        # UTF-8 sequence; appending it anyway would yield a space-only line
+        # (``" "``) that violates RFC 5545 §3.1 line folding. The first line is
+        # always preserved even when empty so a degenerate value still folds to
+        # a well-formed (empty) content line.
+        if text or i == 0:
+            out.append(("" if i == 0 else " ") + text)
     return _CRLF.join(out)
 
 
