@@ -216,6 +216,21 @@ class ItineraryResponse(BaseModel):
         )
 
 
+class DayActivitiesReorderRequest(BaseModel):
+    """Body for reordering a day's activities by index permutation.
+
+    ``order`` is a permutation of the day's current activity indices (``0`` to
+    ``len(activities) - 1``). The server keeps its own activity objects and only
+    rearranges them, so the client cannot inject content or change costs — it
+    just expresses the new sequence. The endpoint validates that ``order`` is a
+    valid permutation (right length, no duplicates, every index in range) and
+    rejects anything else with a 404 out-of-range error, consistent with the
+    rest of the editing surface.
+    """
+
+    order: list[int] = Field(..., min_length=1)
+
+
 class ItineraryListItem(BaseModel):
     """Compact representation for the paginated list endpoint."""
 
