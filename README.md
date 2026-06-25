@@ -17,6 +17,8 @@ multi-step frontend.
 
 **🔗 Live demo:** [https://travel-ai-tai.onrender.com](https://travel-ai-tai.onrender.com) — runs in mock-LLM mode (no API key), so itineraries are generated from a deterministic stub. _Free tier sleeps when idle; first request may take ~30s to wake._
 
+**📦 Latest release:** [v1.0.0](https://github.com/billdmar/travel-ai-tai/releases/tag/v1.0.0) — see the [CHANGELOG](CHANGELOG.md) for the full history.
+
 <p align="center">
   <img src="docs/screenshots/best/home-desktop-slide1-amadablam.png" alt="Travel AI home page — a masked photographic hero with the serif headline “Trips that begin with what you love.”" width="100%">
 </p>
