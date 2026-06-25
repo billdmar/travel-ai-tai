@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import Settings
@@ -159,16 +159,37 @@ async def save_itinerary(
     Sets ``saved_at`` to now if not already set (idempotent — re-saving keeps
     the original timestamp). Returns the itinerary with ``saved=True``; 404 if
     missing or soft-deleted.
+
+    The stamp is applied via a single conditional UPDATE guarded by
+    ``saved_at IS NULL`` rather than a read-modify-write, so two concurrent
+    saves cannot both observe ``None`` and race to commit different timestamps:
+    only the first writer matches the predicate and stamps the row; the second
+    matches no rows and is a no-op, leaving the original timestamp intact. The
+    row is re-fetched afterwards so the response reflects the committed value
+    (the surviving timestamp) regardless of which request won the race.
     """
-    record = await session.get(ItineraryRecord, str(itinerary_id))
+    iid = str(itinerary_id)
+    await session.execute(
+        update(ItineraryRecord)
+        .where(
+            ItineraryRecord.id == iid,
+            ItineraryRecord.deleted_at.is_(None),
+            ItineraryRecord.saved_at.is_(None),
+        )
+        .values(saved_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+
+    # Re-fetch the row to return the committed state. ``session.get`` after a
+    # commit re-reads from the DB, so the response carries the surviving
+    # ``saved_at`` even when this request's UPDATE matched no rows (a re-save or
+    # the losing side of a concurrent race).
+    record = await session.get(ItineraryRecord, iid)
     if record is None or record.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "itinerary_not_found"},
         )
-    if record.saved_at is None:
-        record.saved_at = datetime.now(timezone.utc)
-        await session.commit()
     return record_to_response(record)
 
 
