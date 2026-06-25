@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import type { ItineraryResponse, TravelPreferences } from '../types/itinerary'
 import { getItinerary, streamItinerary } from '../api/client'
+import { useItinerary } from '../hooks/useItinerary'
 import { Container, Reveal, Section } from '../components/ui'
 import ItineraryView from '../components/ItineraryView'
 import ErrorBanner from '../components/ErrorBanner'
@@ -92,32 +93,24 @@ export default function ItineraryPage() {
   const location = useLocation()
   const streamPrefs = (location.state as ItineraryLocationState | null)?.prefs ?? null
 
-  const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null)
-  // Stream first if prefs were passed; otherwise fetch the existing itinerary.
-  const [loading, setLoading] = useState(!streamPrefs)
+  // Stream first if prefs were passed; otherwise fetch the existing itinerary
+  // by id through the shared lifecycle hook (disabled while streaming, since the
+  // stream is then the source of truth and injects its result via setItinerary).
   const [streaming, setStreaming] = useState(!!streamPrefs)
-  const [error, setError] = useState<unknown>(null)
+  const [streamError, setStreamError] = useState<unknown>(null)
 
-  const load = useCallback(async () => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await getItinerary(id)
-      setItinerary(res)
-    } catch (err) {
-      setError(err)
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
+  const fetcher = useCallback(() => getItinerary(id ?? ''), [id])
+  const {
+    itinerary,
+    loading,
+    error: fetchError,
+    reload: load,
+    dismissError: dismissFetchError,
+    setItinerary,
+  } = useItinerary(fetcher, !streamPrefs)
 
-  useEffect(() => {
-    if (streamPrefs) return
-    // Mount/param-change data fetch; the setState inside `load` is intentional.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load()
-  }, [load, streamPrefs])
+  // While streaming, the live stream owns errors; otherwise the fetch does.
+  const error = streamPrefs ? streamError : fetchError
 
   const handleStreamDone = useCallback(
     (it: ItineraryResponse) => {
@@ -126,13 +119,18 @@ export default function ItineraryPage() {
       // Replace history so a refresh re-fetches by id (no re-generation).
       navigate(`/itinerary/${encodeURIComponent(it.id)}`, { replace: true })
     },
-    [navigate],
+    [navigate, setItinerary],
   )
 
   const handleStreamError = useCallback((err: unknown) => {
-    setError(err)
+    setStreamError(err)
     setStreaming(false)
   }, [])
+
+  const dismissError = useCallback(() => {
+    if (streamPrefs) setStreamError(null)
+    else dismissFetchError()
+  }, [streamPrefs, dismissFetchError])
 
   return (
     <Container>
@@ -149,7 +147,7 @@ export default function ItineraryPage() {
           <div className="mx-auto max-w-2xl space-y-4">
             <ErrorBanner
               error={error}
-              onDismiss={() => setError(null)}
+              onDismiss={dismissError}
               onRetry={streamPrefs ? undefined : load}
             />
             <div className="text-center">
@@ -167,6 +165,15 @@ export default function ItineraryPage() {
             itinerary={itinerary}
             onReset={() => navigate('/discover')}
             onViewSaved={() => navigate('/saved')}
+            onAdjust={() =>
+              // Open the planning form in "adjust mode" seeded from this trip:
+              // submitting there calls regenerate (a new trip from this source).
+              navigate(`/plan/${encodeURIComponent(itinerary.preferences.destination)}`, {
+                state: {
+                  adjust: { sourceId: itinerary.id, preferences: itinerary.preferences },
+                },
+              })
+            }
           />
         ) : null}
       </Section>

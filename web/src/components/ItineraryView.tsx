@@ -24,6 +24,11 @@ interface ItineraryViewProps {
   /** Switches the app to the Saved page (toast deep link). */
   onViewSaved?: () => void
   /**
+   * Opens the planning form in "adjust mode" to tweak and regenerate this trip.
+   * Owner-only; omitted (and the button hidden) in {@link readOnly} mode.
+   */
+  onAdjust?: () => void
+  /**
    * Public, read-only mode (the /share/:token page): hides all owner controls
    * — Save, Export and Share — so a shared itinerary cannot be mutated.
    */
@@ -36,6 +41,7 @@ export default function ItineraryView({
   itinerary,
   onReset,
   onViewSaved,
+  onAdjust,
   readOnly = false,
 }: ItineraryViewProps) {
   const { id, preferences, days, total_estimated_cost_usd, currency, summary, tips, provider } =
@@ -334,15 +340,40 @@ export default function ItineraryView({
         </div>
       )}
 
-      {onReset && (
-        <div className="flex justify-center pt-2">
-          <button
-            type="button"
-            onClick={onReset}
-            className="rounded-full border border-ink-line bg-canvas-raised px-6 py-2.5 text-sm font-medium text-ink-soft transition-colors duration-hover hover:bg-canvas-sunken hover:text-ink focus-visible:outline-none"
-          >
-            Plan another trip
-          </button>
+      {(onReset || (!readOnly && onAdjust)) && (
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          {!readOnly && onAdjust && (
+            <button
+              type="button"
+              onClick={onAdjust}
+              className="inline-flex items-center gap-2 rounded-full bg-accent-500 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition-colors duration-hover hover:bg-accent-400"
+            >
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              Adjust trip
+            </button>
+          )}
+          {onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="rounded-full border border-ink-line bg-canvas-raised px-6 py-2.5 text-sm font-medium text-ink-soft transition-colors duration-hover hover:bg-canvas-sunken hover:text-ink"
+            >
+              Plan another trip
+            </button>
+          )}
         </div>
       )}
 
