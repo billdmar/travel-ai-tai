@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import {
   BrowserRouter,
   NavLink,
@@ -45,6 +45,17 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 function Header() {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
+
+  // Let keyboard users dismiss the open mobile menu with Escape, matching the
+  // dismiss affordance sighted users get from tapping the toggle again.
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   return (
     <header className="sticky top-0 z-40 border-b border-ink-line bg-canvas/80 backdrop-blur-md">
@@ -149,8 +160,16 @@ export default function App() {
     <BrowserRouter>
       <RouteTitles />
       <div className="flex min-h-screen flex-col bg-canvas text-ink">
+        {/* Skip link: the first focusable element, hidden until focused so
+            keyboard users can jump straight past the nav to the page content. */}
+        <a
+          href="#main-content"
+          className="sr-only rounded-full bg-accent-500 px-4 py-2 text-sm font-medium text-white focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50"
+        >
+          Skip to main content
+        </a>
         <Header />
-        <main className="flex-1">
+        <main id="main-content" className="flex-1">
           <Suspense fallback={<RouteFallback />}>
             <PageTransition>
               <Routes>
