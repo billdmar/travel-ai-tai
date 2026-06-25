@@ -82,11 +82,26 @@ database is always at head.
   bundled static list if it's unavailable.
 - **Sharing & export** — `routes/share.py` mints public read-only tokens
   (`api/share.py`); `routes/export.py` renders Markdown / PDF / ICS downloads
-  (`api/export.py`).
+  (`api/export.py`). `routes/og.py` renders a 1200×630 PNG Open Graph card per itinerary
+  (`GET /api/v1/itineraries/{id}/og-image`, cached ~1h) so shared links preview nicely.
+- **Editing & regeneration** — `routes/itineraries.py` also exposes
+  `POST /api/v1/itineraries/{id}/regenerate` (re-run generation from adjusted preferences,
+  new id, source untouched) and client-side editing via
+  `PUT /api/v1/itineraries/{id}/days/{n}/activities` +
+  `DELETE …/activities/{i}`.
 - **Operational concerns** — per-IP rate limiting (`api/ratelimit.py`, `429` +
   `Retry-After`), request/error middleware (`api/middleware.py`), a dependency-free
   `/health` liveness probe and a DB+cache-checking `/ready` readiness probe
   (`routes/health.py`).
+- **Observability (opt-in, no-op by default)** — the `RequestIDMiddleware`
+  (`api/middleware.py`) stamps a request id + path/method/IP into contextvars so the JSON
+  log formatter (`api/logging_config.py`) tags every line. When `ENABLE_METRICS=true`,
+  `MetricsMiddleware` records Prometheus request latency/count and `routes/metrics.py`
+  exposes `GET /metrics`. When `SENTRY_DSN` is set, `init_sentry` (`api/observability.py`)
+  wires unhandled-exception reporting; with no DSN the SDK never loads.
+- **PWA / service worker** — the frontend registers a service worker via
+  `vite-plugin-pwa` (`web/vite.config.ts`, `web/src/pwa/register.ts`) against the static
+  `web/public/manifest.json`, so the app shell is installable and works offline.
 
 ## Routing & startup order
 
