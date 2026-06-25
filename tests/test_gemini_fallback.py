@@ -9,7 +9,6 @@ The fallback is toggleable via ``Settings.gemini_fallback_to_mock``.
 
 from __future__ import annotations
 
-import sys
 import types
 
 import pytest
@@ -23,39 +22,20 @@ from api.recommend import LLMUnavailableError
 def _quota_error() -> Exception:
     """Return a 429-style error of the type the provider retries on.
 
-    Mirrors the live failure (``google.api_core ResourceExhausted``); falls back
-    to a plain ``Exception`` if the optional package is absent, which the
-    provider's transient set also covers in that case.
+    Mirrors the live failure: ``google-genai`` raises a ``ClientError`` with
+    ``.code == 429`` for quota exhaustion, which the provider's transient set
+    matches. The two-arg ``(code, response_json)`` constructor works fully
+    offline (no live HTTP response needed).
     """
-    try:
-        from google.api_core.exceptions import ResourceExhausted
+    from google.genai.errors import ClientError
 
-        return ResourceExhausted("429 quota exceeded")
-    except ImportError:  # pragma: no cover - depends on optional dep internals
-        return Exception("429 quota exceeded")
-
-
-def _install_fake_genai(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Install a minimal fake ``google.generativeai`` so __init__ succeeds."""
-    fake = types.ModuleType("google.generativeai")
-
-    def configure(**_kw):  # noqa: ANN003
-        return None
-
-    class _Model:
-        def __init__(self, *_a, **_kw):  # noqa: ANN002, ANN003
-            pass
-
-    fake.configure = configure  # type: ignore[attr-defined]
-    fake.GenerativeModel = _Model  # type: ignore[attr-defined]
-    # Ensure `import google.generativeai` resolves to the fake.
-    google_pkg = sys.modules.get("google") or types.ModuleType("google")
-    monkeypatch.setitem(sys.modules, "google", google_pkg)
-    monkeypatch.setitem(sys.modules, "google.generativeai", fake)
+    return ClientError(
+        429,
+        {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "message": "quota exceeded"}},
+    )
 
 
 def _provider(monkeypatch: pytest.MonkeyPatch, *, fallback: bool):
-    _install_fake_genai(monkeypatch)
     from api.llm.gemini_provider import GeminiLLMProvider
 
     settings = Settings(
@@ -67,15 +47,17 @@ def _provider(monkeypatch: pytest.MonkeyPatch, *, fallback: bool):
 
     # Force the per-call coroutine to raise a transient (quota-style) error so
     # tenacity exhausts and the except-branch runs. We raise the same exception
-    # type the real SDK uses for a 429 (ResourceExhausted), matching the retried
-    # set; if google.api_core is unavailable the set is broad Exception anyway.
+    # the real SDK uses for a 429 (ClientError, code 429), which the provider's
+    # transient predicate matches; the async call path is patched at
+    # ``client.aio.models.generate_content`` so no real network call is made.
     quota_error = _quota_error()
 
     async def _boom(*_a, **_kw):  # noqa: ANN002, ANN003
         raise quota_error
 
-    fake_model = types.SimpleNamespace(generate_content_async=_boom)
-    provider._model = fake_model  # type: ignore[attr-defined]
+    monkeypatch.setattr(
+        provider._client.aio.models, "generate_content", _boom
+    )
     return provider
 
 
@@ -117,4 +99,63 @@ async def test_raises_when_fallback_disabled(
 ) -> None:
     provider = _provider(monkeypatch, fallback=False)
     with pytest.raises(LLMUnavailableError):
+        await provider.complete(system="plan a trip", user="Tokyo", max_tokens=500)
+
+
+async def test_success_maps_text_and_tokens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A successful call returns the SDK ``.text`` and maps
+    ``usage_metadata.total_token_count`` onto ``LLMResult.tokens_used``."""
+    from api.llm.gemini_provider import GeminiLLMProvider
+
+    settings = Settings(LLM_PROVIDER="gemini", GEMINI_API_KEY="test-key")
+    provider = GeminiLLMProvider(settings)
+
+    # Shape the new SDK's GenerateContentResponse: `.text` plus a
+    # `usage_metadata.total_token_count` (replaces the legacy SDK's identical
+    # field name on the old response object).
+    fake_resp = types.SimpleNamespace(
+        text='{"ok": true}',
+        usage_metadata=types.SimpleNamespace(total_token_count=123),
+    )
+
+    async def _ok(*_a, **_kw):  # noqa: ANN002, ANN003
+        return fake_resp
+
+    monkeypatch.setattr(provider._client.aio.models, "generate_content", _ok)
+
+    result = await provider.complete(system="s", user="u", max_tokens=100)
+    assert result.text == '{"ok": true}'
+    assert result.tokens_used == 123
+    assert result.fallback_reason is None
+
+
+async def test_permanent_error_is_not_swallowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-transient API error (e.g. 400) must surface, not degrade to mock —
+    it signals a real bug, not a transient quota/availability blip."""
+    from google.genai.errors import ClientError
+
+    from api.llm.gemini_provider import GeminiLLMProvider
+
+    settings = Settings(
+        LLM_PROVIDER="gemini",
+        GEMINI_API_KEY="test-key",
+        GEMINI_FALLBACK_TO_MOCK=True,
+    )
+    provider = GeminiLLMProvider(settings)
+
+    bad_request = ClientError(
+        400, {"error": {"code": 400, "status": "INVALID_ARGUMENT", "message": "bad"}}
+    )
+
+    async def _boom(*_a, **_kw):  # noqa: ANN002, ANN003
+        raise bad_request
+
+    monkeypatch.setattr(provider._client.aio.models, "generate_content", _boom)
+
+    # Despite fallback being enabled, a 400 is permanent and propagates.
+    with pytest.raises(ClientError):
         await provider.complete(system="plan a trip", user="Tokyo", max_tokens=500)
