@@ -37,6 +37,10 @@ export function DestinationImage({
   const [resolved, setResolved] = useState<{ q: string; data: ImageResult } | null>(null)
   // Track the specific URL that failed to load, rather than a boolean flag.
   const [erroredUrl, setErroredUrl] = useState<string | null>(null)
+  // Whether the currently-rendered <img> has finished decoding. Drives the
+  // skeleton-out / image-in fade. Reset to false whenever the resolved src
+  // changes (live -> bundled fallback on error) so each source fades in fresh.
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -59,17 +63,36 @@ export function DestinationImage({
   const credit = liveUrl ? result?.credit : null
   const label = alt ?? result?.alt ?? query
 
+  // Each distinct source starts hidden behind the skeleton; when the bundled
+  // fallback replaces a failed live URL it gets its own fade rather than
+  // snapping in. Synchronous reset during render (keyed off `src`) avoids a
+  // post-paint flash. See React docs: "adjusting state when a prop changes".
+  const [lastSrc, setLastSrc] = useState(src)
+  if (src !== lastSrc) {
+    setLastSrc(src)
+    setLoaded(false)
+  }
+
   return (
     <figure
       className={`relative overflow-hidden rounded-2xl bg-canvas-sunken shadow-frame ring-1 ring-ink-line ${aspect} ${className}`}
     >
+      {!loaded ? (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-canvas-sunken motion-safe:animate-pulse"
+        />
+      ) : null}
       <img
         src={src}
         alt={label}
         loading={eager ? 'eager' : 'lazy'}
         decoding="async"
+        onLoad={() => setLoaded(true)}
         onError={() => setErroredUrl(src)}
-        className="h-full w-full object-cover"
+        className={`h-full w-full object-cover motion-safe:transition-opacity motion-safe:duration-reveal motion-safe:ease-lux ${
+          loaded ? 'opacity-100' : 'opacity-0'
+        }`}
       />
       {showCredit && credit ? (
         <figcaption className="absolute bottom-0 right-0 m-2 rounded-md bg-ink/55 px-2 py-1 text-[11px] leading-none text-canvas backdrop-blur-sm">
