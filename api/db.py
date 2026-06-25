@@ -35,7 +35,10 @@ class ItineraryRecord(Base):
     __tablename__ = "itinerary_records"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Indexed: the Saved list orders by created_at DESC (see
+    # api/routes/itineraries.py list_itineraries) so the most-recent page can be
+    # served from the index rather than a full scan + sort.
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     preferences_json: Mapped[str] = mapped_column(Text)
     itinerary_json: Mapped[str] = mapped_column(Text)
     provider: Mapped[str] = mapped_column(String(32))
@@ -45,8 +48,10 @@ class ItineraryRecord(Base):
     # like this column are now managed by Alembic (see migrations/): run
     # `alembic upgrade head` to bring an existing DB up to date — no manual
     # ALTER TABLE. A fresh DB created via create_all already has it.
+    # Indexed: the Saved list filters on `saved_at IS NOT NULL`, so the index
+    # lets that predicate skip the (potentially many) unsaved drafts.
     saved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
+        DateTime(timezone=True), nullable=True, index=True
     )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
