@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { HERO_SLIDES, type HeroSlide } from '../assets/hero'
+import { fetchCuratedDestinations } from '../api/client'
+import { DESTINATIONS } from './explore/destinations'
 import { Button, Container, Reveal, usePrefersReducedMotion } from './ui'
 
 // "Quiet luxury" motion: slow, eased, no bounce. The cubic-bezier mirrors the
@@ -82,7 +84,11 @@ function KenBurnsImage({ slide, active, reduced, clip }: KenBurnsImageProps) {
  */
 export default function Hero() {
   const reduced = usePrefersReducedMotion()
+  const navigate = useNavigate()
   const [index, setIndex] = useState(0)
+  // True while the "Surprise me" lookup is in flight; disables the button and
+  // swaps its label for a spinner so a slow network can't fire a second pick.
+  const [surprising, setSurprising] = useState(false)
 
   useEffect(() => {
     if (reduced) return
@@ -92,6 +98,30 @@ export default function Hero() {
     )
     return () => window.clearInterval(id)
   }, [reduced])
+
+  /**
+   * Pick a destination at random and jump straight into planning it. We prefer
+   * the live curated atlas (so the surprise tracks the real Explore catalog),
+   * but the gallery's bundled DESTINATIONS array is always a valid fallback —
+   * so an offline endpoint or an empty payload never leaves the button inert.
+   * Picks a name by a plain runtime index so behavior stays deterministic to a
+   * mocked catalog in tests; no animation here, hence no reduced-motion gate.
+   */
+  async function surpriseMe() {
+    if (surprising) return
+    setSurprising(true)
+    let names: string[] = []
+    try {
+      const curated = await fetchCuratedDestinations()
+      names = curated.map((d) => d.name)
+    } catch {
+      // Endpoint down/network error — fall through to the static atlas below.
+    }
+    if (names.length === 0) names = DESTINATIONS.map((d) => d.name)
+    const name = names[Math.floor(Math.random() * names.length)]
+    setSurprising(false)
+    navigate(`/plan/${encodeURIComponent(name)}`)
+  }
 
   // Reduced motion shows only the first slide; everything else stacks live.
   const slides = reduced ? HERO_SLIDES.slice(0, 1) : HERO_SLIDES
@@ -147,6 +177,28 @@ export default function Hero() {
             <div className="mt-9 flex flex-wrap items-center gap-5">
               <Button to="/discover" size="lg">
                 Start discovering →
+              </Button>
+              {/* Quiet secondary: the bordered variant keeps the one-accent
+                  rule intact (no second loud accent button). Plain <button>,
+                  no animation of its own — so no reduced-motion concern. */}
+              <Button
+                variant="secondary"
+                size="lg"
+                onClick={surpriseMe}
+                disabled={surprising}
+                aria-busy={surprising}
+              >
+                {surprising ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="h-4 w-4 animate-spin rounded-full border-2 border-ink-line border-t-transparent motion-reduce:animate-none"
+                    />
+                    Finding…
+                  </>
+                ) : (
+                  'Surprise me →'
+                )}
               </Button>
               <Link
                 to="/how-it-works"
