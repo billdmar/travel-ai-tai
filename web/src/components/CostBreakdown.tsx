@@ -80,13 +80,22 @@ export default function CostBreakdown({ itinerary }: CostBreakdownProps) {
   const budgetPct = budget > 0 ? Math.min(100, (grandTotal / budget) * 100) : 0
   const dayCount = days.length
 
-  const grow = (target: string) =>
+  // Per-bar grow animation. `index` cascades sibling bars (category segments,
+  // per-day bars) into a gentle stagger by delaying each successive bar; the
+  // lone budget gauge passes no index (delay 0). Reduced motion stays instant
+  // with no delay — the stagger is purely cosmetic.
+  const STAGGER_STEP_S = 0.06
+  const grow = (target: string, index = 0) =>
     reduced
       ? { initial: false as const, animate: { width: target } }
       : {
           initial: { width: 0 },
           animate: { width: target },
-          transition: { duration: durationSeconds('reveal'), ease: easeLux() },
+          transition: {
+            duration: durationSeconds('reveal'),
+            delay: index * STAGGER_STEP_S,
+            ease: easeLux(),
+          },
         }
 
   return (
@@ -144,11 +153,11 @@ export default function CostBreakdown({ itinerary }: CostBreakdownProps) {
               .map((c) => `${CATEGORY_LABEL[c.category]} ${Math.round(c.pct)}%`)
               .join(', ')}`}
           >
-            {byCategory.map((c) => (
+            {byCategory.map((c, i) => (
               <motion.div
                 key={c.category}
                 className={`h-full ${CATEGORY_FILL[c.category]}`}
-                {...grow(`${c.pct}%`)}
+                {...grow(`${c.pct}%`, i)}
               />
             ))}
           </div>
@@ -180,7 +189,7 @@ export default function CostBreakdown({ itinerary }: CostBreakdownProps) {
             Spend per day
           </p>
           <ul className="space-y-2.5">
-            {perDay.map((d) => (
+            {perDay.map((d, i) => (
               <li key={d.dayNumber} className="flex items-center gap-3">
                 <span className="w-14 shrink-0 text-xs font-medium text-ink-faint">
                   Day {d.dayNumber}
@@ -188,7 +197,7 @@ export default function CostBreakdown({ itinerary }: CostBreakdownProps) {
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-canvas-sunken">
                   <motion.div
                     className="h-full rounded-full bg-accent-400"
-                    {...grow(`${maxDay > 0 ? (d.total / maxDay) * 100 : 0}%`)}
+                    {...grow(`${maxDay > 0 ? (d.total / maxDay) * 100 : 0}%`, i)}
                   />
                 </div>
                 <span className="w-16 shrink-0 text-right text-xs tabular-nums text-ink-soft">
