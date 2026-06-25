@@ -106,6 +106,18 @@ class Settings(BaseSettings):
     # live deploy behavior is unchanged unless this is explicitly enabled.
     enable_metrics: bool = Field(default=False, alias="ENABLE_METRICS")
 
+    # ── Error tracking (Sentry) ─────────────────────────────────────────────
+    # Fully opt-in: with no DSN, ``init_sentry`` is a no-op and the SDK never
+    # loads, so the live deploy is unchanged. Set SENTRY_DSN (a dashboard-only
+    # secret) to enable unhandled-exception reporting.
+    sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
+    sentry_traces_sample_rate: float = Field(
+        default=0.0, alias="SENTRY_TRACES_SAMPLE_RATE", ge=0.0, le=1.0
+    )
+    sentry_environment: str = Field(
+        default="production", alias="SENTRY_ENVIRONMENT"
+    )
+
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def _split_origins(cls, value: object) -> object:

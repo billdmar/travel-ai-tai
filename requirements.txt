@@ -33,6 +33,11 @@ redis>=5.0,<6
 # only exercised when ENABLE_METRICS=true, so the default deploy never uses it.
 prometheus-client>=0.20,<1
 
+# Opt-in error tracking. Pure-Python wheel (no native deps), prod-safe on the
+# slim image. Imported lazily by api/observability.py and only initialised when
+# SENTRY_DSN is set, so the default deploy never loads it.
+sentry-sdk>=2,<3
+
 # PDF itinerary export — pure-Python (no native/system deps), ships universal
 # wheels, so it is prod-safe on the slim image. Imported lazily in
 # api/export.py; if absent, PDF export degrades to a clean 503 (mirrors the

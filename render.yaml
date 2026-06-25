@@ -34,3 +34,8 @@ services:
       # dev; production locks it to the deployed origin (credentials are off).
       - key: ALLOWED_ORIGINS
         value: https://travel-ai-tai.onrender.com
+      # Opt-in error tracking. Secret — set in the Render dashboard, NEVER
+      # committed. `sync: false` keeps the blueprint from managing the value.
+      # With no DSN, init_sentry is a no-op (error tracking stays off).
+      - key: SENTRY_DSN
+        sync: false

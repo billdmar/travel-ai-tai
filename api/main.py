@@ -33,6 +33,7 @@ from api.llm.provider import get_provider
 from api.logging_config import setup_logging
 from api.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
 from api.models import ErrorResponse
+from api.observability import init_sentry
 from api.ratelimit import limiter
 from api.recommend import RecommendationEngine
 from api.routes import curated_destinations as curated_destinations_routes
@@ -72,6 +73,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Build and return a configured FastAPI application."""
     settings = settings or get_settings()
     _configure_logging(settings)
+    # Opt-in error tracking. Wired before any route registration so the SDK can
+    # instrument the app; a no-op unless SENTRY_DSN is set (see api.observability).
+    init_sentry(settings)
 
     engine = build_engine(settings.database_url)
     sessionmaker = build_sessionmaker(engine)
