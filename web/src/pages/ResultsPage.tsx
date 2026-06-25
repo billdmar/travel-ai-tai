@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { DestinationImage } from '../components/DestinationImage'
 import type {
   DestinationRecommendation,
@@ -16,7 +16,6 @@ import {
 } from '../components/ui'
 
 export default function ResultsPage() {
-  const navigate = useNavigate()
   const location = useLocation()
   const state = location.state as ResultsLocationState | null
 
@@ -45,10 +44,14 @@ export default function ResultsPage() {
 
   const { hobbies, recommendations } = state
 
-  const goPlan = (rec: DestinationRecommendation) => {
-    const planState: PlanLocationState = { hobbies, recommendation: rec }
-    navigate(`/plan/${encodeURIComponent(rec.name)}`, { state: planState })
-  }
+  // Each card is a real navigation, so render it as a router <Link> rather than
+  // a click-handler button: that preserves native keyboard activation,
+  // right-click "open in new tab", and link semantics for assistive tech, while
+  // still carrying the plan state forward via the Link's `state` prop.
+  const planState = (rec: DestinationRecommendation): PlanLocationState => ({
+    hobbies,
+    recommendation: rec,
+  })
 
   return (
     <Section size="cozy" className="relative isolate overflow-hidden">
@@ -86,9 +89,9 @@ export default function ResultsPage() {
           {recommendations.map((rec, i) => (
             <Reveal key={`${rec.name}-${rec.country}`} index={i} as="article">
               <ScrollScale amount={0.04} className="h-full">
-              <button
-                type="button"
-                onClick={() => goPlan(rec)}
+              <Link
+                to={`/plan/${encodeURIComponent(rec.name)}`}
+                state={planState(rec)}
                 className="group flex h-full w-full flex-col overflow-hidden rounded-3xl border border-ink-line bg-canvas-raised text-left shadow-frame transition duration-hover ease-lux hover:-translate-y-1 hover:shadow-lift focus-visible:-translate-y-1 focus-visible:shadow-lift"
               >
                 <DestinationImage
@@ -134,7 +137,7 @@ export default function ResultsPage() {
                     </span>
                   </div>
                 </div>
-              </button>
+              </Link>
               </ScrollScale>
             </Reveal>
           ))}
