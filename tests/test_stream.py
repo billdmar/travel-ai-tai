@@ -37,6 +37,15 @@ def _data_lines(text: str) -> list[str]:
     ]
 
 
+def _event_names(text: str) -> list[str]:
+    """Extract the names of every SSE ``event:`` line from a stream body."""
+    return [
+        line[len("event:") :].strip()
+        for line in text.splitlines()
+        if line.startswith("event:")
+    ]
+
+
 async def test_stream_content_type_is_event_stream(client) -> None:
     resp = await client.post("/api/v1/itineraries/stream", json=_payload())
     assert resp.status_code == 200
@@ -95,6 +104,11 @@ async def test_stream_llm_unavailable_emits_error_event(client, app) -> None:
     data_lines = _data_lines(resp.text)
     assert data_lines, "expected at least one data event"
 
+    # The failure is carried by a named ``event: error`` SSE event so the client
+    # can distinguish it from the terminal itinerary and re-raise the real 503,
+    # instead of mis-parsing the envelope as ItineraryResponse JSON.
+    assert "error" in _event_names(resp.text)
+
     # The error event is schema-valid (validates against the shared envelope)
     # and its wire body is byte-identical to the historical {"error": "<code>"}
     # the frozen client expects (no extra null fields leak in).
@@ -114,6 +128,15 @@ async def test_stream_parse_failure_emits_schema_valid_error_event(client, app) 
 
     resp = await client.post("/api/v1/itineraries/stream", json=_payload())
     assert resp.status_code == 200
+    assert "error" in _event_names(resp.text)
     payload = json.loads(_data_lines(resp.text)[-1])
     assert payload == {"error": "itinerary_parse_failed"}
     assert ErrorResponse.model_validate(payload).error == "itinerary_parse_failed"
+
+
+async def test_stream_happy_path_emits_no_named_event(client) -> None:
+    """The happy-path wire format is unchanged: progress + terminal itinerary
+    travel as unnamed ``data:`` events, with no ``event:`` line in sight."""
+    resp = await client.post("/api/v1/itineraries/stream", json=_payload())
+    assert resp.status_code == 200
+    assert _event_names(resp.text) == []
