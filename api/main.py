@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, AsyncIterator
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
@@ -31,6 +32,7 @@ from api.db import build_engine, build_sessionmaker, create_all, run_migrations
 from api.llm.provider import get_provider
 from api.logging_config import setup_logging
 from api.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
+from api.models import ErrorResponse
 from api.ratelimit import limiter
 from api.recommend import RecommendationEngine
 from api.routes import curated_destinations as curated_destinations_routes
@@ -146,6 +148,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if destinations_router is not None:
         app.include_router(destinations_router)
 
+    _install_openapi_error_responses(app)
     _mount_spa(app)
 
     return app
@@ -200,6 +203,122 @@ def _configure_error_handlers(app: FastAPI) -> None:
                 "detail": "One or more fields were invalid.",
             },
         )
+
+
+# Per-operation map of the runtime error statuses each API endpoint raises
+# beyond the 422 that FastAPI documents automatically. Keyed by
+# ``(METHOD, path)`` to the status codes the route's handler (or its rate-limit
+# dependency) can return as the shared ``{"error": ...}`` envelope. This is
+# documentation only — the route files already emit these bodies at runtime;
+# the table just teaches the generated OpenAPI schema about them. Descriptions
+# are derived from the canonical ``error`` codes the routes use.
+_ERROR_RESPONSES: dict[tuple[str, str], dict[int, str]] = {
+    ("POST", "/api/v1/itineraries"): {
+        429: "rate_limit_exceeded",
+        502: "itinerary_parse_failed",
+        503: "llm_unavailable",
+    },
+    ("POST", "/api/v1/itineraries/{itinerary_id}/regenerate"): {
+        404: "itinerary_not_found",
+        429: "rate_limit_exceeded",
+        502: "itinerary_parse_failed",
+        503: "llm_unavailable",
+    },
+    ("GET", "/api/v1/itineraries/{itinerary_id}"): {
+        404: "itinerary_not_found",
+        429: "rate_limit_exceeded",
+    },
+    ("POST", "/api/v1/itineraries/{itinerary_id}/save"): {
+        404: "itinerary_not_found",
+    },
+    ("DELETE", "/api/v1/itineraries/{itinerary_id}"): {
+        404: "itinerary_not_found",
+    },
+    ("GET", "/api/v1/itineraries"): {
+        429: "rate_limit_exceeded",
+    },
+    ("GET", "/api/v1/itineraries/{itinerary_id}/export"): {
+        404: "itinerary_not_found",
+        429: "rate_limit_exceeded",
+        503: "pdf_export_unavailable",
+    },
+    ("POST", "/api/v1/itineraries/{itinerary_id}/share"): {
+        404: "itinerary_not_found",
+    },
+    ("GET", "/api/v1/shared/{token}"): {
+        404: "share_token_not_found",
+        429: "rate_limit_exceeded",
+    },
+    ("POST", "/api/v1/destinations/recommend"): {
+        502: "destinations_parse_failed",
+        503: "llm_unavailable",
+    },
+    ("GET", "/api/v1/images"): {
+        429: "rate_limit_exceeded",
+    },
+}
+
+
+def _install_openapi_error_responses(app: FastAPI) -> None:
+    """Document the shared error envelope on the generated OpenAPI schema.
+
+    FastAPI auto-documents a 422 (against its own ``HTTPValidationError``) for
+    every endpoint with a body/params, but the app's handlers and routes return
+    the project's own ``{"error": ...}`` envelope (see :class:`ErrorResponse`).
+    This wraps ``app.openapi`` so the cached schema (1) re-points each 422 at
+    ``ErrorResponse`` and (2) adds the 404/429/502/503 responses each endpoint
+    can actually raise, per :data:`_ERROR_RESPONSES`.
+
+    Doc/schema only: it mutates the generated schema, never the runtime
+    responses. The result is cached on ``app.openapi_schema`` the first time
+    ``/openapi.json`` (or ``app.openapi()``) is requested, exactly like the
+    stock generator.
+    """
+
+    def custom_openapi() -> dict:
+        if app.openapi_schema is not None:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+            contact=app.contact,
+        )
+        # Ensure the ErrorResponse schema is a referenceable component even if no
+        # operation happens to use it as a request/response model elsewhere.
+        components = schema.setdefault("components", {}).setdefault("schemas", {})
+        components.setdefault("ErrorResponse", ErrorResponse.model_json_schema())
+        error_ref = {
+            "application/json": {
+                "schema": {"$ref": "#/components/schemas/ErrorResponse"}
+            }
+        }
+
+        for path, methods in schema.get("paths", {}).items():
+            for method, operation in methods.items():
+                responses = operation.get("responses")
+                if responses is None:
+                    continue
+                # Re-point the auto-generated 422 at our envelope.
+                if "422" in responses:
+                    responses["422"] = {
+                        "description": "Validation error (validation_failed).",
+                        "content": error_ref,
+                    }
+                # Add the endpoint-specific runtime error codes.
+                for code, error_name in _ERROR_RESPONSES.get(
+                    (method.upper(), path), {}
+                ).items():
+                    responses[str(code)] = {
+                        "description": error_name,
+                        "content": error_ref,
+                    }
+
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = custom_openapi  # type: ignore[method-assign]
 
 
 # Hashed Vite assets (``/assets/<name>-<hash>.<ext>``) are content-addressed, so

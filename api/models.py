@@ -31,6 +31,31 @@ ActivityCategory = Literal[
 ]
 
 
+class ErrorResponse(BaseModel):
+    """The shared error envelope every failing endpoint returns.
+
+    Mirrors the runtime shape the routes already emit — ``HTTPException`` with
+    ``detail={"error": "<code>"}`` (FastAPI serializes that dict as the response
+    body) and the app-level 422/429 handlers in :mod:`api.main` — so the
+    generated OpenAPI schema documents the error contract instead of leaving
+    failures as an opaque ``{}``.
+
+    * ``error`` — a stable machine-readable code (e.g. ``itinerary_not_found``,
+      ``llm_unavailable``, ``validation_failed``) the frontend branches on.
+    * ``detail`` — a human-readable sentence; only the 422 handler sets it.
+    * ``retry_after_seconds`` — only the 429 rate-limit handler sets it,
+      mirroring the ``Retry-After`` header.
+
+    This model is documentation/schema only: it is never used to *construct*
+    responses, so it must not constrain the existing wire bodies — hence the
+    optional fields default to ``None``.
+    """
+
+    error: str
+    detail: str | None = None
+    retry_after_seconds: int | None = None
+
+
 class TravelPreferences(BaseModel):
     """Structured user input that drives itinerary generation."""
 
