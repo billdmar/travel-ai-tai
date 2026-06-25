@@ -211,33 +211,44 @@ export default function SavedItinerariesPage({ onNavigateHome }: SavedItinerarie
             <SkeletonList />
           ) : items.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-ink-line bg-canvas-raised p-14 text-center">
-              <svg
-                aria-hidden="true"
-                className="mx-auto h-10 w-10 text-ink-faint"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"
-                />
-              </svg>
-              <h2 className="mt-5 font-serif text-2xl font-medium tracking-tight text-ink">
-                No saved itineraries yet
-              </h2>
-              <p className="mt-2 text-ink-soft">
-                Generate a trip and hit Save to keep it here for later.
-              </p>
-              <button
-                type="button"
-                onClick={goPlan}
-                className="mt-6 rounded-full bg-accent-500 px-6 py-2.5 text-sm font-medium text-white transition-colors duration-hover hover:bg-accent-600 focus-visible:outline-none"
-              >
-                Plan a trip
-              </button>
+              {/* Gentle staggered entrance — each element lifts in a beat after
+                  the last. Reveal passes children straight through under
+                  reduced motion, so the empty state stays static there. */}
+              <Reveal index={0}>
+                <svg
+                  aria-hidden="true"
+                  className="mx-auto h-10 w-10 text-ink-faint"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z"
+                  />
+                </svg>
+              </Reveal>
+              <Reveal index={1}>
+                <h2 className="mt-5 font-serif text-2xl font-medium tracking-tight text-ink">
+                  No saved itineraries yet
+                </h2>
+              </Reveal>
+              <Reveal index={2}>
+                <p className="mt-2 text-ink-soft">
+                  Generate a trip and hit Save to keep it here for later.
+                </p>
+              </Reveal>
+              <Reveal index={3}>
+                <button
+                  type="button"
+                  onClick={goPlan}
+                  className="mt-6 rounded-full bg-accent-500 px-6 py-2.5 text-sm font-medium text-white transition-colors duration-hover hover:bg-accent-600 focus-visible:outline-none"
+                >
+                  Plan a trip
+                </button>
+              </Reveal>
             </div>
           ) : (
             <ul className="space-y-3">
