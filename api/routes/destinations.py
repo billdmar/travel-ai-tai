@@ -21,6 +21,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import ValidationError
 
+from api.http_helpers import raise_llm_unavailable
 from api.llm.prompts.destinations import (
     MAX_DESTINATIONS,
     MIN_DESTINATIONS,
@@ -66,12 +67,8 @@ async def recommend_destinations(
             max_tokens=2000,
         )
         raw = result.text
-    except LLMUnavailableError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"error": "llm_unavailable"},
-            headers={"Retry-After": "60"},
-        ) from exc
+    except LLMUnavailableError:
+        raise_llm_unavailable()
 
     try:
         result = DestinationRecommendationResponse.model_validate_json(raw)

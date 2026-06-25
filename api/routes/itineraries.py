@@ -18,6 +18,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import Settings
 from api.db import ItineraryRecord, get_session
+from api.http_helpers import (
+    get_itinerary_or_404,
+    raise_itinerary_parse_failed,
+    raise_llm_unavailable,
+)
 from api.llm.provider import TOKEN_COUNTER
 from api.models import (
     Activity,
@@ -68,17 +73,10 @@ async def create_itinerary(
     engine = _engine(request)
     try:
         itinerary = await engine.generate(preferences, session)
-    except LLMUnavailableError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"error": "llm_unavailable"},
-            headers={"Retry-After": "60"},
-        ) from exc
-    except ItineraryParseError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail={"error": "itinerary_parse_failed"},
-        ) from exc
+    except LLMUnavailableError:
+        raise_llm_unavailable()
+    except ItineraryParseError:
+        raise_itinerary_parse_failed()
     if itinerary.fallback_reason is not None:
         response.headers["X-LLM-Fallback"] = itinerary.fallback_reason
     return itinerary
@@ -109,27 +107,15 @@ async def regenerate_itinerary(
     Carries the same write rate limit and the same error mapping (503/502) and
     ``X-LLM-Fallback`` surfacing as creation, since it shares the engine path.
     """
-    source = await session.get(ItineraryRecord, str(itinerary_id))
-    if source is None or source.deleted_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "itinerary_not_found"},
-        )
+    await get_itinerary_or_404(session, itinerary_id)
 
     engine = _engine(request)
     try:
         itinerary = await engine.generate(preferences, session)
-    except LLMUnavailableError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"error": "llm_unavailable"},
-            headers={"Retry-After": "60"},
-        ) from exc
-    except ItineraryParseError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail={"error": "itinerary_parse_failed"},
-        ) from exc
+    except LLMUnavailableError:
+        raise_llm_unavailable()
+    except ItineraryParseError:
+        raise_itinerary_parse_failed()
     if itinerary.fallback_reason is not None:
         response.headers["X-LLM-Fallback"] = itinerary.fallback_reason
     return itinerary
@@ -145,12 +131,7 @@ async def get_itinerary(
     session: AsyncSession = Depends(get_session),
 ) -> ItineraryResponse:
     """Retrieve a previously generated itinerary by id (404 if soft-deleted)."""
-    record = await session.get(ItineraryRecord, str(itinerary_id))
-    if record is None or record.deleted_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "itinerary_not_found"},
-        )
+    record = await get_itinerary_or_404(session, itinerary_id)
     return record_to_response(record)
 
 
@@ -189,12 +170,7 @@ async def save_itinerary(
     # commit re-reads from the DB, so the response carries the surviving
     # ``saved_at`` even when this request's UPDATE matched no rows (a re-save or
     # the losing side of a concurrent race).
-    record = await session.get(ItineraryRecord, iid)
-    if record is None or record.deleted_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "itinerary_not_found"},
-        )
+    record = await get_itinerary_or_404(session, itinerary_id)
     return record_to_response(record)
 
 
@@ -245,12 +221,7 @@ async def delete_itinerary(
     session: AsyncSession = Depends(get_session),
 ) -> Response:
     """Soft-delete an itinerary by setting ``deleted_at`` (404 if missing)."""
-    record = await session.get(ItineraryRecord, str(itinerary_id))
-    if record is None or record.deleted_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "itinerary_not_found"},
-        )
+    record = await get_itinerary_or_404(session, itinerary_id)
     record.deleted_at = datetime.now(timezone.utc)
     # Invalidate any public share links so a deleted trip stops resolving.
     await delete_tokens_for_itinerary(session, record.id)
@@ -283,12 +254,7 @@ async def _edit_day_activities(
     soft-deleted itinerary, or an out-of-range day/index, surfaces the shared
     ``itinerary_not_found`` error envelope as a 404.
     """
-    record = await session.get(ItineraryRecord, str(itinerary_id))
-    if record is None or record.deleted_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "itinerary_not_found"},
-        )
+    record = await get_itinerary_or_404(session, itinerary_id)
 
     preferences = TravelPreferences.model_validate_json(record.preferences_json)
     generated = GeneratedItinerary.model_validate_json(record.itinerary_json)

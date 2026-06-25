@@ -19,13 +19,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.db import ItineraryRecord, get_session
+from api.db import get_session
 from api.export import (
     PDFExportUnavailable,
     render_ics,
     render_markdown,
     render_pdf,
 )
+from api.http_helpers import get_itinerary_or_404
 from api.ratelimit import rate_limit_export
 from api.recommend import record_to_response
 
@@ -54,12 +55,7 @@ async def export_itinerary(
     The ``format`` query param is validated by FastAPI against the ``Literal``,
     so any other value yields a 422 before this handler runs.
     """
-    record = await session.get(ItineraryRecord, str(itinerary_id))
-    if record is None or record.deleted_at is not None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"error": "itinerary_not_found"},
-        )
+    record = await get_itinerary_or_404(session, itinerary_id)
 
     itinerary = record_to_response(record)
     stem = f"{_slug(itinerary.preferences.destination)}-itinerary"

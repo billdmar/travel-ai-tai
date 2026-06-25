@@ -175,3 +175,40 @@ async def test_real_provider_tokens_persisted_and_returned(
         record = await session.get(ItineraryRecord, str(response.id))
     assert record is not None
     assert record.tokens_used == 1234
+
+
+class _NoUsageProvider(LLMProvider):
+    """A non-mock provider whose response carries no usage metadata."""
+
+    name = "openai"
+
+    async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:  # noqa: ARG002
+        # Valid itinerary JSON, but ``tokens_used`` left as the ``None`` default
+        # the way a real response without usage metadata would arrive.
+        import json
+
+        from api.llm.mock_provider import build_mock_itinerary
+
+        return LLMResult(json.dumps(build_mock_itinerary()))
+
+
+async def test_provider_reporting_none_tokens_records_zero(
+    test_settings, sessionmaker
+) -> None:
+    # The token rule is None-based, not name-based: ANY provider that reports
+    # ``tokens_used=None`` (the mock, or a real response lacking usage metadata)
+    # records 0 — distinguishing "no usage reported" from a real count.
+    engine = RecommendationEngine(
+        settings=test_settings,
+        provider=_NoUsageProvider(),
+        cache=ItineraryCache(test_settings),
+    )
+    async with sessionmaker() as session:
+        response = await engine.generate(_prefs(), session)
+
+    assert response.tokens_used == 0
+
+    async with sessionmaker() as session:
+        record = await session.get(ItineraryRecord, str(response.id))
+    assert record is not None
+    assert record.tokens_used == 0
