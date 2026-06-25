@@ -33,6 +33,7 @@ from api.logging_config import setup_logging
 from api.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
 from api.ratelimit import limiter
 from api.recommend import RecommendationEngine
+from api.routes import curated_destinations as curated_destinations_routes
 from api.routes import export as export_routes
 from api.routes import health as health_routes
 from api.routes import images as image_routes
@@ -90,6 +91,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await run_migrations()
         else:
             await create_all(engine)
+            # Postgres seeds the curated destinations via the Alembic migration;
+            # the SQLite/dev create_all path makes the empty table, so seed it
+            # here (idempotent — no-op once populated) so the curated endpoint
+            # has rows in every environment.
+            from api.seed_destinations import seed_destinations_if_empty
+
+            # Read the sessionmaker off app.state (not the closure) so the test
+            # harness's injected DB is seeded too — the curated endpoint reads
+            # via the same get_session-backed sessionmaker. Best-effort: a seed
+            # failure must never abort startup (the curated endpoint would just
+            # return an empty list and the frontend falls back to its static
+            # array), so any error is logged and swallowed.
+            try:
+                async with _app.state.sessionmaker() as session:
+                    await seed_destinations_if_empty(session)
+            except Exception:  # pragma: no cover - defensive startup guard
+                logger.warning("curated_destinations_seed_failed", exc_info=True)
         yield
         await engine.dispose()
 
@@ -124,6 +142,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(export_routes.router)
     app.include_router(share_routes.router)
     app.include_router(stream_routes.router)
+    app.include_router(curated_destinations_routes.router)
     if destinations_router is not None:
         app.include_router(destinations_router)
 

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import AsyncIterator
 
 from fastapi import Request
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -84,6 +84,43 @@ class ShareTokenRecord(Base):
         index=True,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Destination(Base):
+    """Curated Explore-gallery destination — editorial copy + bundled-asset key.
+
+    This is the DB-backed source for the ``GET /api/v1/destinations/curated``
+    endpoint that replaces the frontend's hardcoded ``DESTINATIONS`` array. Each
+    column mirrors a field of the frontend ``CuratedDestination`` interface
+    (web/src/components/explore/destinations.ts): ``slug`` is the bundled-asset
+    key + URL route param, ``query`` is handed to the image service/matcher, and
+    ``vibes``/``story`` are short JSON lists (the ``JSON`` type maps to ``TEXT``
+    on SQLite and native ``jsonb``-adjacent ``JSON`` on Postgres).
+
+    This is editorial discovery copy — NOT the LLM recommendation contract
+    (``DestinationRecommendation``), which stays server-generated.
+    """
+
+    __tablename__ = "destinations"
+
+    # Bundled-asset slug + URL route param (/destination/:slug); the natural key.
+    slug: Mapped[str] = mapped_column(String(64), primary_key=True)
+    name: Mapped[str] = mapped_column(String(128))
+    country: Mapped[str] = mapped_column(String(128))
+    # Free-text query handed to the live image service / asset matcher.
+    query: Mapped[str] = mapped_column(String(128))
+    # Short editorial line shown on the gallery card.
+    tagline: Mapped[str] = mapped_column(Text)
+    # Best window to visit (mirrors DestinationRecommendation.best_season).
+    best_season: Mapped[str] = mapped_column(Text)
+    # Filterable vibes (list[str]) and the immersive landing-page story
+    # (list[str], two-to-three sentences) — both small JSON arrays.
+    vibes: Mapped[list[str]] = mapped_column(JSON)
+    story: Mapped[list[str]] = mapped_column(JSON)
+    # The gallery's deliberate editorial order (not alphabetical): the endpoint
+    # returns rows sorted by this ascending so the curated rhythm is preserved.
+    # Indexed because the list query's sole ORDER BY is on this column.
+    sort_order: Mapped[int] = mapped_column(Integer, index=True)
 
 
 # libpq-only query params that hosted Postgres providers (Neon, Supabase, …)

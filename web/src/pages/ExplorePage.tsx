@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Container, Section, Reveal, Button } from '../components/ui'
 import {
   DESTINATIONS,
@@ -6,23 +6,46 @@ import {
   DestinationCard,
   VibeFilter,
 } from '../components/explore'
-import type { Vibe } from '../components/explore'
+import type { CuratedDestination, Vibe } from '../components/explore'
+import { fetchCuratedDestinations } from '../api/client'
 
 /**
  * Explore — a framed photography gallery of curated destinations, filterable by
  * vibe. Each card opens an immersive landing page (/destination/:slug). Built
  * from ui/ primitives + the bundled image library; scroll-reveals and the card
  * hover zoom are reduced-motion safe.
+ *
+ * The atlas is loaded from the DB-backed ``GET /api/v1/destinations/curated``
+ * endpoint, with the bundled ``DESTINATIONS`` array as a graceful fallback so
+ * the gallery always renders even if the request fails (network/offline/5xx).
  */
 export default function ExplorePage() {
   const [activeVibe, setActiveVibe] = useState<Vibe | null>(null)
+  // Seed with the bundled static atlas so the gallery renders instantly and
+  // never blanks; swap to the server list once it loads. On fetch failure we
+  // simply keep the fallback — Explore must never break.
+  const [destinations, setDestinations] = useState<CuratedDestination[]>(DESTINATIONS)
+
+  useEffect(() => {
+    let active = true
+    fetchCuratedDestinations()
+      .then((rows) => {
+        if (active && rows.length > 0) setDestinations(rows)
+      })
+      .catch(() => {
+        /* keep the bundled fallback array */
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const visible = useMemo(
     () =>
       activeVibe
-        ? DESTINATIONS.filter((d) => d.vibes.includes(activeVibe))
-        : DESTINATIONS,
-    [activeVibe],
+        ? destinations.filter((d) => d.vibes.includes(activeVibe))
+        : destinations,
+    [activeVibe, destinations],
   )
 
   return (
