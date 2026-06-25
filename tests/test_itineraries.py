@@ -76,6 +76,54 @@ async def test_get_missing_404(client) -> None:
     assert resp.json()["detail"]["error"] == "itinerary_not_found"
 
 
+async def test_regenerate_returns_new_itinerary_with_different_id(client) -> None:
+    # Create a source trip, then regenerate it with adjusted preferences. The
+    # adjusted prefs differ, so the engine produces a brand-new itinerary (new
+    # id) rather than returning the cached source.
+    source = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    resp = await client.post(
+        f"/api/v1/itineraries/{source['id']}/regenerate",
+        json=_payload(destination="Osaka, Japan", budget_usd=3000.0),
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    parsed = ItineraryResponse.model_validate(body)
+    assert str(parsed.id) != source["id"]
+    assert body["preferences"]["destination"] == "Osaka, Japan"
+    # The source row is left intact (not mutated) and still resolves.
+    assert (await client.get(f"/api/v1/itineraries/{source['id']}")).status_code == 200
+
+
+async def test_regenerate_unknown_source_404(client) -> None:
+    resp = await client.post(
+        "/api/v1/itineraries/00000000-0000-0000-0000-000000000000/regenerate",
+        json=_payload(),
+    )
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["error"] == "itinerary_not_found"
+
+
+def test_regenerate_wires_create_write_rate_limit(app) -> None:
+    # The regenerate route must carry the SAME write rate-limit dependency that
+    # protects POST /itineraries (rate limiting is disabled in tests, so assert
+    # the wiring on the route rather than runtime headers). Both routes share the
+    # one ``rate_limit`` dependency callable.
+    from api.ratelimit import rate_limit
+
+    def _deps(path: str, method: str) -> list:
+        for route in app.routes:
+            if getattr(route, "path", None) == path and method in getattr(
+                route, "methods", set()
+            ):
+                return [d.call for d in route.dependant.dependencies]
+        raise AssertionError(f"route not found: {method} {path}")
+
+    create_deps = _deps("/api/v1/itineraries", "POST")
+    regen_deps = _deps("/api/v1/itineraries/{itinerary_id}/regenerate", "POST")
+    assert rate_limit in create_deps
+    assert rate_limit in regen_deps
+
+
 async def test_list_envelope(client) -> None:
     # The list returns ONLY saved itineraries, so save both before asserting.
     a = (await client.post("/api/v1/itineraries", json=_payload())).json()
