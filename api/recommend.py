@@ -26,7 +26,12 @@ from api import affiliate
 from api.config import Settings, get_settings
 from api.db import ItineraryRecord
 from api.llm.prompts.itinerary import build_system_prompt, build_user_prompt, maps_url
-from api.models import GeneratedItinerary, ItineraryResponse, TravelPreferences
+from api.models import (
+    GeneratedItinerary,
+    ItineraryListItem,
+    ItineraryResponse,
+    TravelPreferences,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -218,6 +223,41 @@ class RecommendationEngine:
         )
         session.add(record)
         await session.commit()
+
+
+def record_to_list_item(record: ItineraryRecord) -> ItineraryListItem:
+    """Project a stored row onto the compact list item without normalizing.
+
+    The list endpoint shows only four scalars per row (destination, the two
+    trip dates, and the grand total). The full :func:`record_to_response` path
+    is overkill here: for every row it rebuilds the entire activity tree —
+    recomputing a canonical map link and an affiliate booking link for *each*
+    activity (see :func:`normalize_generated`) — none of which the list ever
+    serializes. That made listing O(rows x activities) of pure wasted work on
+    every call (an N+1-style per-row blow-up on top of the single row query).
+
+    Here we parse just what we need: preferences for the destination/dates, and
+    the itinerary's activity costs for the grand total. The total is summed and
+    rounded *identically* to ``normalize_generated`` (the server-owned grand
+    total derived from per-activity ``estimated_cost_usd``), so the value shown
+    in the list matches the detail view byte-for-byte — without touching map or
+    booking links.
+    """
+    preferences = TravelPreferences.model_validate_json(record.preferences_json)
+    generated = GeneratedItinerary.model_validate_json(record.itinerary_json)
+    total = sum(
+        activity.estimated_cost_usd
+        for day in generated.days
+        for activity in day.activities
+    )
+    return ItineraryListItem(
+        id=UUID(record.id),
+        created_at=record.created_at,
+        destination=preferences.destination,
+        start_date=preferences.start_date,
+        end_date=preferences.end_date,
+        total_estimated_cost_usd=round(total, 2),
+    )
 
 
 def record_to_response(record: ItineraryRecord) -> ItineraryResponse:

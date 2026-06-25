@@ -92,6 +92,51 @@ async def test_list_envelope(client) -> None:
     assert len(body["items"]) == 2
 
 
+async def test_list_does_not_renormalize_each_row(client, monkeypatch) -> None:
+    # Regression guard for the list N+1: the old path called record_to_response
+    # for every row, which re-derives every activity's booking link via
+    # api.affiliate.booking_url. The compact list never serializes those links,
+    # so listing must not invoke that per-activity work at all — regardless of
+    # how many saved rows (and activities) exist.
+    import api.recommend as recommend
+
+    a = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    b = (
+        await client.post("/api/v1/itineraries", json=_payload(destination="Kyoto"))
+    ).json()
+    await client.post(f"/api/v1/itineraries/{a['id']}/save")
+    await client.post(f"/api/v1/itineraries/{b['id']}/save")
+
+    calls = {"n": 0}
+    original = recommend.affiliate.booking_url
+
+    def _counting_booking_url(*args, **kwargs):
+        calls["n"] += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(recommend.affiliate, "booking_url", _counting_booking_url)
+
+    resp = await client.get("/api/v1/itineraries")
+    assert resp.status_code == 200
+    # Bounded: zero per-activity normalization work for any number of rows.
+    assert calls["n"] == 0
+
+
+async def test_list_content_unchanged(client) -> None:
+    # The compact projection must yield the same scalars the detail view does.
+    created = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    await client.post(f"/api/v1/itineraries/{created['id']}/save")
+    detail = (await client.get(f"/api/v1/itineraries/{created['id']}")).json()
+
+    item = (await client.get("/api/v1/itineraries")).json()["items"][0]
+    assert item["id"] == created["id"]
+    assert item["destination"] == detail["preferences"]["destination"]
+    assert item["start_date"] == detail["preferences"]["start_date"]
+    assert item["end_date"] == detail["preferences"]["end_date"]
+    # Grand total matches the detail view byte-for-byte (same sum + rounding).
+    assert item["total_estimated_cost_usd"] == detail["total_estimated_cost_usd"]
+
+
 async def test_delete_then_get_404_soft_delete(client) -> None:
     created = (await client.post("/api/v1/itineraries", json=_payload())).json()
     iid = created["id"]
