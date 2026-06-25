@@ -15,11 +15,14 @@ engine returning the stored record, not from the model emitting a stable id.
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
+
+logger = logging.getLogger("tai.models")
 
 # ── Bounds (also enforced at the API layer) ────────────────────────────────
 MAX_DESTINATION_LEN = 200
@@ -102,6 +105,32 @@ class Activity(BaseModel):
     lng: float | None = None
     #: Server-filled affiliate booking link (None until the engine attaches one).
     booking_url: str | None = None
+
+    @model_validator(mode="after")
+    def _drop_out_of_range_coords(self) -> Activity:
+        """Discard a coordinate pair that falls outside valid Earth ranges.
+
+        Today the mock provider emits sane coordinates, but the moment a real
+        model (e.g. Gemini) starts supplying them it could hallucinate a value
+        like ``lat=500``. Leaflet would silently plot such a pin in the wrong
+        place — or off the map entirely — so a present-but-out-of-range pair is
+        treated as *no coordinates*: we null **both** ``lat`` and ``lng`` (a
+        half-valid pair is meaningless) and drop the pin rather than plot
+        garbage. We never invent or clamp values here — the model stays
+        decoupled from any provider's geocoding.
+        """
+        lat_ok = self.lat is None or -90.0 <= self.lat <= 90.0
+        lng_ok = self.lng is None or -180.0 <= self.lng <= 180.0
+        if not (lat_ok and lng_ok):
+            logger.warning(
+                "Dropping out-of-range activity coordinates for %r: lat=%s lng=%s",
+                self.place,
+                self.lat,
+                self.lng,
+            )
+            self.lat = None
+            self.lng = None
+        return self
 
 
 class ItineraryDay(BaseModel):
