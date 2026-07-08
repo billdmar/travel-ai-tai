@@ -1,4 +1,4 @@
-# Secrets — never commit
+# Secrets
 .env
 *.env
 !.env.example

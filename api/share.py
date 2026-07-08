@@ -1,12 +1,8 @@
 """Share-token helpers: mint and look up opaque public share links.
 
-A share token is an opaque, URL-safe string that maps to exactly one
-itinerary. Tokens are persisted in the ``share_tokens`` table so a generated
-link keeps working across a process restart (same DB), and the public lookup
-returns a read-only :class:`ItineraryResponse`.
-
-Minting is idempotent per itinerary: asking to share an itinerary that already
-has a token returns the existing token rather than minting a duplicate.
+Tokens are persisted in the ``share_tokens`` table so a shared link survives
+process restarts. Minting is idempotent: sharing a trip that already has a
+token returns the existing one rather than creating a duplicate.
 """
 
 from __future__ import annotations

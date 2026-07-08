@@ -1,9 +1,8 @@
-"""Liveness and readiness endpoints.
+"""Liveness and readiness probes.
 
-``/health`` is a dependency-free liveness probe (always 200 while the process
-is up). ``/ready`` is a readiness probe that verifies the app can actually
-serve traffic: it opens a DB session and runs ``SELECT 1``, and exercises the
-cache backend. It returns 200 only when both pass, otherwise 503.
+``/health`` — dependency-free liveness (always 200 while the process is up).
+``/ready`` — readiness: runs DB ``SELECT 1`` and cache round-trip concurrently;
+returns 200 only when both pass, otherwise 503.
 """
 
 from __future__ import annotations

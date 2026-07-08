@@ -1,8 +1,8 @@
 """Shared slowapi limiter and per-route rate-limit dependencies.
 
-Applied as a FastAPI dependency (not a decorator) to avoid the
-``functools.wraps`` + ``from __future__ import annotations`` conflict that
-breaks body parsing. Emits ``X-RateLimit-*`` headers via request.state.
+Uses a dependency (not a decorator) to avoid the functools.wraps + annotations
+conflict that breaks request-body parsing. Emits X-RateLimit-* headers via
+request.state for the security middleware to forward.
 """
 
 from __future__ import annotations
