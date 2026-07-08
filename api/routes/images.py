@@ -31,8 +31,6 @@ logger = logging.getLogger("tai.images")
 router = APIRouter(prefix="/api/v1", tags=["images"])
 
 _UNSPLASH_SEARCH = "https://api.unsplash.com/search/photos"
-#: Fallback timeout when settings carry no HTTP timeout (e.g. in isolation).
-_DEFAULT_TIMEOUT_SECONDS = 5.0
 #: Cap the query sent upstream — destination/image_query strings are short, and
 #: a bound is cheap defence against oversized or malformed input.
 _MAX_QUERY_LEN = 120
@@ -159,19 +157,18 @@ async def get_image(request: Request, query: str = Query(..., min_length=1)) -> 
     if cached is not None:
         return cached
 
-    timeout = getattr(settings, "http_timeout_seconds", None) or _DEFAULT_TIMEOUT_SECONDS
+    http = request.app.state.http_client
 
     try:
-        async with httpx.AsyncClient(timeout=timeout) as http:
-            resp = await http.get(
-                _UNSPLASH_SEARCH,
-                params={
-                    "query": upstream_query,
-                    "per_page": _PER_PAGE,
-                    "orientation": "landscape",
-                },
-                headers={"Authorization": f"Client-ID {key}"},
-            )
+        resp = await http.get(
+            _UNSPLASH_SEARCH,
+            params={
+                "query": upstream_query,
+                "per_page": _PER_PAGE,
+                "orientation": "landscape",
+            },
+            headers={"Authorization": f"Client-ID {key}"},
+        )
         resp.raise_for_status()
         results = resp.json().get("results") or []
         if not results:
