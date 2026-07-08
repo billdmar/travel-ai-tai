@@ -60,6 +60,13 @@ const ROUTE_META: ReadonlyArray<readonly [string, RouteMeta]> = [
     },
   ],
   [
+    '/compare',
+    {
+      title: 'Compare Trips',
+      description: 'Saved itineraries side by side — days, budget, and pace at a glance.',
+    },
+  ],
+  [
     '/explore',
     {
       title: 'Explore Destinations',
