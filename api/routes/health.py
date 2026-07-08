@@ -78,8 +78,10 @@ async def ready(request: Request, response: Response) -> dict[str, object]:
     cache: ItineraryCache = request.app.state.cache
 
     timeout = settings.health_check_timeout_seconds
-    db_ok = await _check_db(sessionmaker, timeout)
-    cache_ok = await _check_cache(cache, timeout)
+    db_ok, cache_ok = await asyncio.gather(
+        _check_db(sessionmaker, timeout),
+        _check_cache(cache, timeout),
+    )
     ready_ok = db_ok and cache_ok
 
     if not ready_ok:

@@ -5,6 +5,7 @@ import {
   exportItinerary,
   fetchCuratedDestinations,
   fetchImage,
+  resetCuratedDestinationsCache,
   getItinerary,
   recommendDestinations,
   streamItinerary,
@@ -137,6 +138,9 @@ describe('fetchImage', () => {
 })
 
 describe('fetchCuratedDestinations', () => {
+  // The client memoizes the curated promise module-wide; drop it between cases
+  // so each test exercises a fresh fetch.
+  beforeEach(() => resetCuratedDestinationsCache())
   afterEach(() => vi.restoreAllMocks())
 
   it('unwraps the destinations array on success', async () => {

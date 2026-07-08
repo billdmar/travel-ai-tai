@@ -187,10 +187,29 @@ interface CuratedDestinationsResponse {
  * callers can use it directly. Throws ApiError on any non-2xx/network failure;
  * the Explore page catches that and falls back to its bundled static array, so
  * the gallery never breaks when the endpoint is unavailable.
+ *
+ * The in-flight/settled promise is memoized module-wide so repeat navigations
+ * to Explore reuse the same result instead of re-fetching; a rejection clears
+ * the memo so the next call retries.
  */
-export async function fetchCuratedDestinations(): Promise<CuratedDestination[]> {
-  const body = await request<CuratedDestinationsResponse>(`${BASE}/destinations/curated`)
-  return body.destinations
+let curatedDestinationsPromise: Promise<CuratedDestination[]> | null = null
+
+/** Test-only: drop the curated-destinations memo so cases stay independent. */
+export function resetCuratedDestinationsCache(): void {
+  curatedDestinationsPromise = null
+}
+
+export function fetchCuratedDestinations(): Promise<CuratedDestination[]> {
+  if (!curatedDestinationsPromise) {
+    const promise = request<CuratedDestinationsResponse>(
+      `${BASE}/destinations/curated`,
+    ).then((body) => body.destinations)
+    promise.catch(() => {
+      if (curatedDestinationsPromise === promise) curatedDestinationsPromise = null
+    })
+    curatedDestinationsPromise = promise
+  }
+  return curatedDestinationsPromise
 }
 
 /**
