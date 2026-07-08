@@ -16,7 +16,6 @@ tenacity>=8.2,<10
 cachetools>=5.3,<6
 slowapi>=0.1.9,<0.2
 alembic>=1.13,<2
-openai>=1.0,<2
 python-dotenv>=1.0,<2
 # Gemini SDK — required in the prod image so the live site can run
 # LLM_PROVIDER=gemini. The supported `google-genai` package (replaces the EOL
@@ -25,18 +24,10 @@ python-dotenv>=1.0,<2
 # gemini provider still imports it lazily so the mock path never loads it.
 google-genai>=1.0,<2
 
-# Optional cache backend (graceful fallback to in-memory if unreachable).
-redis>=5.0,<6
-
 # Prometheus client for the opt-in /metrics endpoint + request metrics
 # middleware. Pure-Python, ships universal wheels (prod-safe on the slim image);
 # only exercised when ENABLE_METRICS=true, so the default deploy never uses it.
 prometheus-client>=0.20,<1
-
-# Opt-in error tracking. Pure-Python wheel (no native deps), prod-safe on the
-# slim image. Imported lazily by api/observability.py and only initialised when
-# SENTRY_DSN is set, so the default deploy never loads it.
-sentry-sdk>=2,<3
 
 # PDF itinerary export — pure-Python (no native/system deps), ships universal
 # wheels, so it is prod-safe on the slim image. Imported lazily in

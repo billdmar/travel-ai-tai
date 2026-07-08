@@ -136,7 +136,7 @@ export default function ComparePage() {
             <>
               {/* Summary row: destination, days, budget tier, pace per trip. */}
               <div className="overflow-x-auto">
-                <div className="flex min-w-full gap-4" role="row" aria-label="Trip summary">
+                <div className="flex min-w-full gap-4" role="group" aria-label="Trip summary">
                   {slots.map((s) =>
                     s.missing || !s.itinerary ? (
                       <MissingColumn key={s.id} id={s.id} />

@@ -37,14 +37,17 @@ interface KenBurnsImageProps {
 function KenBurnsImage({ slide, active, reduced, clip }: KenBurnsImageProps) {
   const pan = PAN[slide.focus ?? 'center']
   const clipStyle = clip ? { clipPath: clip, WebkitClipPath: clip } : undefined
+  // Masked copies are always decorative; inactive slides are invisible
+  // (opacity 0) but still mounted for preloading, so hide them from AT too.
+  const hidden = Boolean(clip) || !active
 
   if (reduced) {
     // Still frame — no fade, no zoom. Only the first slide is rendered.
     return (
       <img
         src={slide.src}
-        alt={clip ? '' : slide.alt}
-        aria-hidden={clip ? true : undefined}
+        alt={hidden ? '' : slide.alt}
+        aria-hidden={hidden ? true : undefined}
         className="absolute inset-0 h-full w-full object-cover"
         style={clipStyle}
       />
@@ -54,8 +57,8 @@ function KenBurnsImage({ slide, active, reduced, clip }: KenBurnsImageProps) {
   return (
     <motion.img
       src={slide.src}
-      alt={clip ? '' : slide.alt}
-      aria-hidden={clip ? true : undefined}
+      alt={hidden ? '' : slide.alt}
+      aria-hidden={hidden ? true : undefined}
       className="absolute inset-0 h-full w-full object-cover will-change-transform"
       style={clipStyle}
       initial={false}

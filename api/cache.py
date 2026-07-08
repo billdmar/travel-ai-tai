@@ -6,13 +6,16 @@ window resolve to the same stored record. Backed by an in-memory
 ``cachetools.TTLCache`` guarded by an asyncio lock; an optional Redis backend
 is used when ``CACHE_BACKEND=redis`` with silent fallback to in-memory if the
 Redis import or connection fails.
+
+Also home to :class:`AsyncTTLCache`, the generic async-safe TTL cache shared by
+the image proxy and OG-card routes.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from cachetools import TTLCache
 
@@ -23,6 +26,30 @@ logger = logging.getLogger("tai.cache")
 
 _TTL_SECONDS = 3600
 _MAX_SIZE = 1000
+
+T = TypeVar("T")
+
+
+class AsyncTTLCache(Generic[T]):
+    """Async-safe in-process TTL cache of string key -> value.
+
+    A ``cachetools.TTLCache`` guarded by an ``asyncio.Lock`` so concurrent
+    requests on the event loop can't corrupt the mapping.
+    """
+
+    def __init__(self, maxsize: int, ttl: int) -> None:
+        self._lock = asyncio.Lock()
+        self._store: TTLCache[str, T] = TTLCache(maxsize=maxsize, ttl=ttl)
+
+    async def get(self, key: str) -> T | None:
+        """Return the cached value for ``key`` if still within the TTL."""
+        async with self._lock:
+            return self._store.get(key)
+
+    async def set(self, key: str, value: T) -> None:
+        """Cache ``value`` under ``key``."""
+        async with self._lock:
+            self._store[key] = value
 
 
 class ItineraryCache:
