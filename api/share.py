@@ -47,25 +47,8 @@ async def mint_share_token(session: AsyncSession, itinerary_id: str) -> str | No
     """Mint (or reuse) a share token for a live itinerary.
 
     Returns the token string, or ``None`` if the itinerary does not exist or is
-    soft-deleted. Idempotent: a second call for the same itinerary returns the
-    token minted on the first call.
-
-    Concurrency: minting is a check-then-act (look for an existing token, else
-    insert), so two simultaneous share clicks could both pass the check and both
-    insert — and because ``share_tokens.itinerary_id`` carries only a *non*-unique
-    index, the duplicate is silently accepted by the DB rather than rejected,
-    breaking the documented per-itinerary idempotency. Three layers guard it:
-
-    1. A per-itinerary :class:`asyncio.Lock` serializes mints sharing one event
-       loop / worker so the second caller observes the first's committed token.
-    2. ``with_for_update=True`` takes a ``SELECT ... FOR UPDATE`` row lock on the
-       parent itinerary, serializing concurrent mints *across* workers/processes
-       on Postgres (prod). It is a no-op on SQLite (the test backend), which is
-       why layer 1 carries the in-process case the tests exercise.
-    3. A belt-and-suspenders ``IntegrityError`` fallback: if a constraint ever
-       does reject the insert (e.g. the token primary key, or a unique index a
-       future migration adds on ``itinerary_id``), roll back and return the token
-       the winning request already committed instead of surfacing a 500.
+    soft-deleted. Idempotent: a second call returns the existing token.
+    Serialized per-itinerary (asyncio lock + row lock + IntegrityError fallback).
     """
     async with _mint_locks[itinerary_id]:
         # Row-lock the parent before the existence check so a concurrent mint on

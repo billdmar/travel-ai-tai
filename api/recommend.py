@@ -239,22 +239,10 @@ class RecommendationEngine:
 
 
 def record_to_list_item(record: ItineraryRecord) -> ItineraryListItem:
-    """Project a stored row onto the compact list item without normalizing.
+    """Project a stored row onto the compact list-endpoint shape.
 
-    The list endpoint shows only four scalars per row (destination, the two
-    trip dates, and the grand total). The full :func:`record_to_response` path
-    is overkill here: for every row it rebuilds the entire activity tree —
-    recomputing a canonical map link and an affiliate booking link for *each*
-    activity (see :func:`normalize_generated`) — none of which the list ever
-    serializes. That made listing O(rows x activities) of pure wasted work on
-    every call (an N+1-style per-row blow-up on top of the single row query).
-
-    Here we parse just what we need: preferences for the destination/dates, and
-    the itinerary's activity costs for the grand total. The total is summed and
-    rounded *identically* to ``normalize_generated`` (the server-owned grand
-    total derived from per-activity ``estimated_cost_usd``), so the value shown
-    in the list matches the detail view byte-for-byte — without touching map or
-    booking links.
+    Parses only what the list needs (destination, dates, cost total) — avoids
+    the full normalize_generated path and its per-activity link rewriting.
     """
     preferences = TravelPreferences.model_validate_json(record.preferences_json)
     generated = GeneratedItinerary.model_validate_json(record.itinerary_json)
