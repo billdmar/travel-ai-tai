@@ -359,5 +359,5 @@ def _mount_spa(app: FastAPI) -> None:
 
 
 
-# Module-level app for `uvicorn api.main:app`.
+# Module-level instance for `uvicorn api.main:app`.
 app = create_app()

@@ -7,8 +7,8 @@ LLM provider, validates the output against the frozen ``GeneratedItinerary``
 schema, assembles the full ``ItineraryResponse`` with server-owned fields,
 persists it, and caches the fingerprint → id mapping.
 
-Provider/parse failures surface as :class:`LLMUnavailableError` and
-:class:`ItineraryParseError`, which the API layer maps to ``503`` and ``502``.
+Provider/parse failures surface as ``LLMUnavailableError`` and
+``ItineraryParseError``, which the route layer maps to 503 and 502.
 """
 
 from __future__ import annotations
