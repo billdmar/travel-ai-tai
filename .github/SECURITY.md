@@ -10,6 +10,6 @@ responsibly by emailing the maintainer directly rather than opening a public iss
 
 ## Scope
 
-This project is a portfolio demonstration. It does not process real payments or
-store sensitive user data. However, security issues in dependencies or the API
-surface (e.g., injection, SSRF via the image proxy) are taken seriously.
+This project does not process real payments or store sensitive user data.
+However, security issues in dependencies or the API surface (e.g., injection,
+SSRF via the image proxy) are taken seriously.
