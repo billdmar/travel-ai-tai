@@ -220,8 +220,7 @@ To enable real OpenAI generation, add an `OPENAI_API_KEY` env var and set
 
 ## Scalability design
 
-The backend is built to serve many concurrent users; these are the concrete mechanisms
-(and the interview-relevant reasoning behind them):
+The backend is built to serve many concurrent users; these are the concrete mechanisms:
 
 1. **Async end-to-end.** Every route handler is `async def` and database access uses
    SQLAlchemy 2.0's async engine + `async_sessionmaker`, so the event loop is never
@@ -239,12 +238,11 @@ The backend is built to serve many concurrent users; these are the concrete mech
    mean the API scales horizontally behind a load balancer; SQLite is the default,
    Postgres is a one-line `DATABASE_URL` swap.
 
-> **Honest scope note.** The resume frames this project as "serving 200+ users." That is a
-> *design target* demonstrated by the mechanisms above and a concurrency smoke test
-> (`tests/test_concurrency_smoke.py` fires many simultaneous requests against the mock
-> provider and asserts they all succeed) — **not** a measured production load test.
-> The OpenAI path is implemented and unit-tested via mocked errors, but in this
-> environment all runtime verification uses the mock provider (no API key).
+> **Scope note.** The 200+ concurrent user target is a *design target* demonstrated by the
+> mechanisms above and a concurrency smoke test (`tests/test_concurrency_smoke.py` fires
+> many simultaneous requests against the mock provider and asserts they all succeed) —
+> not a measured production load test. The OpenAI path is implemented and unit-tested
+> via mocked errors, but the live deployment uses the mock provider (no API key).
 
 ## Testing
 
