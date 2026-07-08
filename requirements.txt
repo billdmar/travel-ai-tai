@@ -40,4 +40,4 @@ fpdf2>=2.7,<3
 # prod-safe on the slim image. Imported lazily in api/routes/og.py to draw the
 # 1200x630 PNG share card. Upper bound left open through 12.x to match the wheel
 # already resolved in CI/dev (10 is the floor for the scalable load_default).
-Pillow>=10,<13
+Pillow>=12.3.0,<13
