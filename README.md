@@ -5,7 +5,7 @@ by an LLM and served through a scalable Python API. TAI is a full-stack referenc
 implementation: a **FastAPI** async backend with a preference→prompt recommendation
 engine, OpenAI structured-output generation validated by **Pydantic**, response caching,
 rate limiting, and persistence — paired with a **React + Vite + TypeScript + Tailwind**
-multi-step frontend.
+frontend.
 
 [![CI](https://github.com/billdmar/travel-ai-tai/actions/workflows/ci.yml/badge.svg)](https://github.com/billdmar/travel-ai-tai/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
@@ -47,7 +47,7 @@ multi-step frontend.
   graceful `{fallback:true}` envelope and the UI shows a bundled placeholder.
 - **Production-style API** — async handlers, response caching, per-IP rate limiting,
   retry/backoff, soft-delete, pagination, and auto-generated OpenAPI docs at `/docs`.
-- **Polished frontend** — a destination-discovery flow, multi-step preference wizard,
+- **Polished frontend** — a destination-discovery flow, a trip preference form,
   collapsible day cards with Map + Book links, an FTC affiliate-disclosure banner, a
   saved-trips page, and friendly error states for validation / rate-limit / LLM-unavailable
   cases.
@@ -112,7 +112,7 @@ serif headlines over an Inter body, and slow eased motion with strict reduced-mo
 ```
 React (Vite/TS/Tailwind)                FastAPI (async)
 ┌───────────────────────┐  POST /api/v1  ┌──────────────────────────────────────┐
-│ PreferenceForm (4-step)│ ─────────────▶ │ routes/itineraries.py                  │
+│ TripDetailsPage (form) │ ─────────────▶ │ routes/itineraries.py                  │
 │ ItineraryView/DayCard  │ ◀───────────── │   └─ RecommendationEngine.generate()   │
 └───────────────────────┘   ItineraryJSON │        ├─ cache key = SHA-256(prefs)   │
                                           │        ├─ ItineraryCache (TTL/Redis)   │
@@ -248,8 +248,9 @@ The backend is built to serve many concurrent users; these are the concrete mech
 
 ## Testing
 
-An **80-test** suite runs entirely against the mock LLM provider — no API key and no
-network — so it's fast and deterministic in CI. Coverage spans the cache-hit identity
+A **240-test backend** suite (pytest) runs entirely against the mock LLM provider — no
+API key and no network — so it's fast and deterministic in CI, alongside a **178-test
+frontend** suite (Vitest + Testing Library). Backend coverage spans the cache-hit identity
 guarantee, rate-limit isolation (429), error mapping (503/502), request validation,
 destination discovery, affiliate-link generation (plain vs. tagged), the Unsplash image
 proxy (fallback + payload parsing), and a concurrency smoke test that fires many

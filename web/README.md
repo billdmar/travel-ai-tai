@@ -1,7 +1,7 @@
 # Travel AI (TAI) — Web Frontend
 
 The React single-page app for **Travel AI (TAI)**, an LLM-powered itinerary
-generator. Users discover destinations from their interests, fill in a multi-step
+generator. Users discover destinations from their interests, fill in a
 preference form, and get back a structured day-by-day plan they can view as a list
 or on a map, save, export, and share.
 
@@ -58,11 +58,10 @@ web/src/
 ├── pages/                # One component per route (Home, Discover, Results,
 │                         # TripDetails, Itinerary, Saved, Explore, Destination,
 │                         # Share, HowItWorks, About, Disclosure)
-├── components/           # PreferenceForm, ItineraryView, DayCard, MapView,
-│   │                     # CostBreakdown, PackingChecklist, ExportShareButton, …
+├── components/           # ItineraryView, DayCard, MapView, CostBreakdown,
+│   │                     # PackingChecklist, ExportShareButton, …
 │   ├── ui/               # Design-system primitives (Button, Container, Reveal, …)
-│   ├── explore/          # Explore/Discover cards + curated-destination data
-│   └── story/            # Marketing "why TAI" section
+│   └── explore/          # Explore/Discover cards + curated-destination data
 ├── seo/                  # Per-route <title> management
 ├── lib/                  # Small pure helpers (currency formatting, …)
 ├── assets/               # Bundled hero + destination photos (WebP) and fallbacks
@@ -80,7 +79,7 @@ Defined in `src/App.tsx` (all route components are lazy-loaded):
 | `/results` | ResultsPage | Recommended destinations |
 | `/explore` | ExplorePage | Curated destination atlas |
 | `/destination/:slug` | DestinationLandingPage | Editorial destination landing |
-| `/plan/:destination` | TripDetailsPage | Multi-step preference form |
+| `/plan/:destination` | TripDetailsPage | Trip preference form |
 | `/itinerary/:id` | ItineraryPage | Generated itinerary (list/map) |
 | `/saved` | SavedItinerariesPage | Saved trips |
 | `/share/:token` | SharePage | Public, read-only shared itinerary |
@@ -92,10 +91,10 @@ Defined in `src/App.tsx` (all route components are lazy-loaded):
   default List view renders collapsible day cards; the Map view lazy-loads Leaflet
   and plots every activity that has coordinates. Owner controls (Save / Export /
   Share) are hidden in `readOnly` mode so a shared link can't be mutated.
-- **Multi-step preference form** (`components/PreferenceForm.tsx`) capturing
-  destination, dates, budget, interests, pace, travel style, **dietary needs**, and
-  **accessibility needs** (e.g. wheelchair / limited mobility / visual / hearing),
-  posted as `TravelPreferences` to `POST /api/v1/itineraries`.
+- **Trip preference form** (`pages/TripDetailsPage.tsx`) capturing dates, budget,
+  group size, pace, travel style, and notes (dietary & accessibility needs are
+  carried through when adjusting an existing trip), posted as `TravelPreferences`
+  to `POST /api/v1/itineraries`.
 - **Export** (`components/ExportShareButton.tsx`) downloads an itinerary as
   **Markdown**, **PDF**, or **ICS** calendar via
   `GET /api/v1/itineraries/{id}/export?format=…`.

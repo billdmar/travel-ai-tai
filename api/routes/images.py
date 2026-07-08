@@ -16,9 +16,9 @@ import logging
 from typing import TYPE_CHECKING
 
 import httpx
-from cachetools import TTLCache
 from fastapi import APIRouter, Depends, Query, Request
 
+from api.cache import AsyncTTLCache
 from api.ratelimit import rate_limit_image
 
 if TYPE_CHECKING:
@@ -46,49 +46,27 @@ _CACHE_TTL_SECONDS = 3600
 _CACHE_MAX_SIZE = 512
 
 
-class _ImageCache:
-    """Async-safe TTL cache of normalized query -> photo envelope.
-
-    Mirrors :class:`api.cache.ItineraryCache`: an in-process
-    ``cachetools.TTLCache`` guarded by an ``asyncio.Lock`` so concurrent
-    requests on the event loop can't corrupt the mapping. Only successful
-    (non-fallback) envelopes are stored — see :func:`get_image` for why.
-    """
-
-    def __init__(self) -> None:
-        self._lock = asyncio.Lock()
-        self._store: TTLCache[str, dict] = TTLCache(
-            maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_TTL_SECONDS
-        )
-
-    async def get(self, key: str) -> dict | None:
-        """Return the cached envelope for ``key`` if still within the TTL."""
-        async with self._lock:
-            return self._store.get(key)
-
-    async def set(self, key: str, envelope: dict) -> None:
-        """Cache ``envelope`` under the normalized ``key``."""
-        async with self._lock:
-            self._store[key] = envelope
-
-
 #: Guards lazy, race-free creation of the per-app cache (see ``_cache_for``).
 _INIT_LOCK = asyncio.Lock()
 
 
-async def _cache_for(app: FastAPI) -> _ImageCache:
-    """Return the app's image cache, creating it on first use.
+async def _cache_for(app: FastAPI) -> AsyncTTLCache[dict]:
+    """Return the app's image cache (normalized query -> photo envelope).
 
-    The cache lives on ``app.state`` (not a module global) so each app built in
-    a test gets its own — preserving the suite's per-test isolation — while
-    production shares one instance across requests.
+    Created on first use via the shared :class:`api.cache.AsyncTTLCache`. Only
+    successful (non-fallback) envelopes are stored — see :func:`get_image` for
+    why. The cache lives on ``app.state`` (not a module global) so each app
+    built in a test gets its own — preserving the suite's per-test isolation —
+    while production shares one instance across requests.
     """
     cache = getattr(app.state, "image_cache", None)
     if cache is None:
         async with _INIT_LOCK:
             cache = getattr(app.state, "image_cache", None)
             if cache is None:
-                cache = _ImageCache()
+                cache = AsyncTTLCache[dict](
+                    maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_TTL_SECONDS
+                )
                 app.state.image_cache = cache
     return cache
 

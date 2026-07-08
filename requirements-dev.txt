@@ -1,5 +1,9 @@
 # Development & CI tooling.
 -r requirements.txt
+# Optional runtime deps (openai / redis / sentry-sdk): the suite exercises the
+# openai provider and redis fallback paths, so dev/CI must install them even
+# though the prod image does not.
+-r requirements-optional.txt
 pytest>=8.0,<9
 pytest-asyncio>=0.23,<0.25
 pytest-cov>=5.0,<7

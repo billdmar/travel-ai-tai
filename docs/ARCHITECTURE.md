@@ -14,7 +14,7 @@ The core path turns a `TravelPreferences` payload into a persisted, validated
 itinerary:
 
 ```
-PreferenceForm (web)                         FastAPI (api/)
+TripDetailsPage (web)                        FastAPI (api/)
 ─────────────────────                        ──────────────
 POST /api/v1/itineraries  ──────────────▶    routes/itineraries.py
   { destination, dates, budget,                 └─ RecommendationEngine.generate()  (api/recommend.py)

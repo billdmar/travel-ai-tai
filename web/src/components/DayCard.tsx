@@ -255,7 +255,7 @@ export default function DayCard({
   const panelBody = (
     <div className="border-t border-ink-line px-3 py-3 sm:px-5">
       {/* Mobile: stacked cards */}
-      <ul className="space-y-3 sm:hidden">
+      <ul aria-label={`Day ${day.day_number} activities`} className="space-y-3 sm:hidden">
         {day.activities.map((a, i) => (
           <li key={i} className="rounded-xl border border-ink-line p-3">
             <div className="flex items-center justify-between">
@@ -305,7 +305,7 @@ export default function DayCard({
             Scroll for links &rarr;
           </p>
         )}
-        <table className="w-full text-left text-sm">
+        <table aria-label={`Day ${day.day_number} activities`} className="w-full text-left text-sm">
           <thead>
             <tr className="text-[11px] uppercase tracking-[0.12em] text-ink-faint">
               <th className="px-3 py-2 font-medium">Time</th>

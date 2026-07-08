@@ -1,0 +1,16 @@
+# Optional runtime dependencies — each is imported lazily and only needed when
+# its feature is explicitly enabled. The default deploy (LLM_PROVIDER=gemini
+# with mock fallback, in-memory cache, no Sentry) never loads any of these, so
+# the prod image installs only requirements.txt. Dev/CI installs this file via
+# requirements-dev.txt because the test suite exercises these code paths.
+
+# OpenAI provider — only imported when LLM_PROVIDER=openai.
+openai>=1.0,<2
+
+# Redis cache backend — only imported when CACHE_BACKEND=redis (graceful
+# fallback to in-memory if the import or connection fails).
+redis>=5.0,<6
+
+# Opt-in error tracking — imported lazily by api/observability.py and only
+# initialised when SENTRY_DSN is set.
+sentry-sdk>=2,<3
