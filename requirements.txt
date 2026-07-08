@@ -16,7 +16,7 @@ tenacity>=8.2,<10
 cachetools>=5.3,<6
 slowapi>=0.1.9,<0.2
 alembic>=1.13,<2
-python-dotenv>=1.0,<2
+python-dotenv>=1.2.2,<2
 # Gemini SDK — required in the prod image so the live site can run
 # LLM_PROVIDER=gemini. The supported `google-genai` package (replaces the EOL
 # `google-generativeai` SDK). Its deps (httpx, google-auth, protobuf) ship
