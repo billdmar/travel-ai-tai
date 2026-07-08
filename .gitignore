@@ -27,3 +27,10 @@ web/node_modules/
 .DS_Store
 .idea/
 .vscode/
+
+# AI workflow artifacts
+HANDOFF.md
+INTEGRATION.md
+
+# Build/cache artifacts
+web/coverage/

@@ -7,8 +7,6 @@ registers the health and itinerary routers FIRST; and mounts the built React
 SPA at ``/`` LAST with a catch-all so client-side routes resolve to
 ``index.html`` — guarded so the API runs fine without a built frontend.
 
-Historical note: the resume-era prototype used Flask; this rewrite uses
-FastAPI for first-class async, dependency injection, and OpenAPI docs.
 """
 
 from __future__ import annotations
@@ -18,12 +16,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncIterator
 
+import httpx
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 
 from api.cache import ItineraryCache
@@ -44,11 +42,7 @@ from api.routes import itineraries as itinerary_routes
 from api.routes import og as og_routes
 from api.routes import share as share_routes
 from api.routes import stream as stream_routes
-
-try:  # discovery router is provided by a sibling branch; tolerate its absence.
-    from api.routes.destinations import router as destinations_router
-except ImportError:  # pragma: no cover - present only after the merge.
-    destinations_router = None
+from api.routes.destinations import router as destinations_router
 
 if TYPE_CHECKING:
     from fastapi.responses import Response
@@ -63,17 +57,9 @@ _DESCRIPTION = (
 )
 
 
-def _configure_logging(settings: Settings) -> None:
-    logging.basicConfig(
-        level=getattr(logging, settings.log_level.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
-
-
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build and return a configured FastAPI application."""
     settings = settings or get_settings()
-    _configure_logging(settings)
     # Opt-in error tracking. Wired before any route registration so the SDK can
     # instrument the app; a no-op unless SENTRY_DSN is set (see api.observability).
     init_sentry(settings)
@@ -115,7 +101,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     await seed_destinations_if_empty(session)
             except Exception:  # pragma: no cover - defensive startup guard
                 logger.warning("curated_destinations_seed_failed", exc_info=True)
+        _app.state.http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(settings.http_timeout_seconds),
+            follow_redirects=True,
+        )
         yield
+        await _app.state.http_client.aclose()
         await engine.dispose()
 
     app = FastAPI(
@@ -156,8 +147,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(stream_routes.router)
     app.include_router(curated_destinations_routes.router)
     app.include_router(og_routes.router)
-    if destinations_router is not None:
-        app.include_router(destinations_router)
+    app.include_router(destinations_router)
     # Opt-in /metrics endpoint (registered only when ENABLE_METRICS=true).
     if settings.enable_metrics:
         from api.routes import metrics as metrics_routes
@@ -367,7 +357,6 @@ def _mount_spa(app: FastAPI) -> None:
             )
         return FileResponse(index_file, headers={"Cache-Control": _NO_CACHE})
 
-    app.mount("/", StaticFiles(directory=str(_WEB_DIST), html=True), name="static")
 
 
 # Module-level app for `uvicorn api.main:app`.

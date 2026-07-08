@@ -14,9 +14,9 @@ couples to the Unsplash proxy.
 tags in ``index.html`` / ``SharePage`` advertise those exact dimensions.
 
 404 when the itinerary is missing or soft-deleted. Each rendered PNG is cached
-~1h per id (the card is deterministic for a given stored itinerary), mirroring
-the TTLCache pattern in :mod:`api.routes.images` with this route's own cache
-instance so the two never share state.
+~1h per id (the card is deterministic for a given stored itinerary), using the
+shared :class:`api.cache.AsyncTTLCache` with this route's own cache instance so
+it never shares state with :mod:`api.routes.images`.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ import asyncio
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from api.cache import AsyncTTLCache
 from api.db import ItineraryRecord, get_session
 from api.recommend import record_to_response
 
@@ -79,37 +79,12 @@ _BUDGET_TIER = {
 }
 
 
-class _OgCache:
-    """Async-safe TTL cache of itinerary id -> rendered PNG bytes.
-
-    Mirrors :class:`api.routes.images._ImageCache`: an in-process
-    ``cachetools.TTLCache`` guarded by an ``asyncio.Lock`` so concurrent
-    requests on the event loop can't corrupt the mapping.
-    """
-
-    def __init__(self) -> None:
-        self._lock = asyncio.Lock()
-        self._store: TTLCache[str, bytes] = TTLCache(
-            maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_TTL_SECONDS
-        )
-
-    async def get(self, key: str) -> bytes | None:
-        """Return the cached PNG for ``key`` if still within the TTL."""
-        async with self._lock:
-            return self._store.get(key)
-
-    async def set(self, key: str, png: bytes) -> None:
-        """Cache the rendered ``png`` under the itinerary id ``key``."""
-        async with self._lock:
-            self._store[key] = png
-
-
 #: Guards lazy, race-free creation of the per-app cache (see ``_cache_for``).
 _INIT_LOCK = asyncio.Lock()
 
 
-async def _cache_for(app: FastAPI) -> _OgCache:
-    """Return the app's OG cache, creating it on first use.
+async def _cache_for(app: FastAPI) -> AsyncTTLCache[bytes]:
+    """Return the app's OG cache (itinerary id -> PNG bytes), creating it on first use.
 
     The cache lives on ``app.state`` (not a module global) so each app built in
     a test gets its own — preserving the suite's per-test isolation — while
@@ -120,7 +95,9 @@ async def _cache_for(app: FastAPI) -> _OgCache:
         async with _INIT_LOCK:
             cache = getattr(app.state, "og_cache", None)
             if cache is None:
-                cache = _OgCache()
+                cache = AsyncTTLCache[bytes](
+                    maxsize=_CACHE_MAX_SIZE, ttl=_CACHE_TTL_SECONDS
+                )
                 app.state.og_cache = cache
     return cache
 
