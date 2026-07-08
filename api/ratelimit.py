@@ -1,23 +1,8 @@
-"""Shared slowapi limiter and a FastAPI rate-limit dependency.
+"""Shared slowapi limiter and per-route rate-limit dependencies.
 
-A single module-level :class:`Limiter` is created so it can be referenced both
-by the application factory (which sets ``limiter.enabled`` from the
-``RATE_LIMIT_ENABLED`` setting and registers the 429 handler) and by the
-:func:`rate_limit` dependency below.
-
-The limit is applied as a *dependency* rather than slowapi's ``@limiter.limit``
-decorator: the decorator wraps the endpoint with ``functools.wraps`` which
-repoints ``__globals__`` to slowapi's module, so FastAPI can no longer resolve
-the route's string annotations (under ``from __future__ import annotations``)
-and mis-classifies the request body. The dependency approach keeps the
-endpoint signature pristine while still enforcing the limit.
-
-The dependency also computes the standard ``X-RateLimit-Limit/Remaining/Reset``
-headers and stashes them on ``request.state.rate_limit_headers``;
-:class:`api.middleware.SecurityHeadersMiddleware` copies that dict onto the
-outgoing response, so the headers appear on both the 2xx and 429 responses
-without coupling the route signatures to slowapi. The ``Retry-After`` header on
-a hit remains owned by the 429 handler in the app factory.
+Applied as a FastAPI dependency (not a decorator) to avoid the
+``functools.wraps`` + ``from __future__ import annotations`` conflict that
+breaks body parsing. Emits ``X-RateLimit-*`` headers via request.state.
 """
 
 from __future__ import annotations
