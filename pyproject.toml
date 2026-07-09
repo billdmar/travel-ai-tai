@@ -9,6 +9,12 @@ filterwarnings = [
     # we run 3.11 but keep this tolerant so the suite stays warning-clean.
     "ignore::DeprecationWarning:pkg_resources",
     "ignore::DeprecationWarning:limits",
+    # FastAPI 0.139 still references Starlette's deprecated
+    # HTTP_422_UNPROCESSABLE_ENTITY constant internally (fastapi/routing.py),
+    # which Starlette 1.x flags via StarletteDeprecationWarning (a UserWarning
+    # subclass, NOT DeprecationWarning). It fires on any 422 response and is
+    # upstream's to fix — ignore by message until FastAPI catches up.
+    "ignore:.*HTTP_422_UNPROCESSABLE_ENTITY.*:UserWarning",
 ]
 
 [tool.ruff]

@@ -144,7 +144,7 @@ async def get_itinerary(
     record = await get_itinerary_or_404(session, itinerary_id)
     response_model = record_to_response(record)
     body_json = response_model.model_dump_json()
-    etag = f'W/"{hashlib.md5(body_json.encode()).hexdigest()}"'
+    etag = f'W/"{hashlib.md5(body_json.encode(), usedforsecurity=False).hexdigest()}"'
 
     if_none_match = request.headers.get("if-none-match")
     if if_none_match and if_none_match == etag:
