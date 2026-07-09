@@ -6,8 +6,9 @@ import {
   Routes,
   Link,
 } from 'react-router-dom'
-import { Container } from './components/ui'
+import { Container, ThemeToggle } from './components/ui'
 import PageTransition from './components/PageTransition'
+import ScrollToTop from './components/ScrollToTop'
 import RouteTitles from './seo/RouteTitles'
 
 // Lazy routes. Pages owned by Terminal 1 (Home/Discover/Results/TripDetails)
@@ -27,6 +28,7 @@ const DisclosurePage = lazy(() => import('./pages/DisclosurePage'))
 const ExplorePage = lazy(() => import('./pages/ExplorePage'))
 const DestinationLandingPage = lazy(() => import('./pages/DestinationLandingPage'))
 const SharePage = lazy(() => import('./pages/SharePage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 const NAV = [
   { to: '/discover', label: 'Discover' },
@@ -78,21 +80,25 @@ function Header() {
               {item.label}
             </NavLink>
           ))}
+          <ThemeToggle />
         </nav>
 
-        {/* Mobile: a compact toggle that reveals the same links. */}
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-          aria-controls="mobile-nav"
-          aria-label={open ? 'Close menu' : 'Open menu'}
-          className="-mr-1.5 inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-canvas-sunken hover:text-ink sm:hidden"
-        >
-          <span aria-hidden="true" className="text-xl leading-none">
-            {open ? '✕' : '≡'}
-          </span>
-        </button>
+        {/* Mobile: theme toggle + hamburger. */}
+        <div className="flex items-center gap-1 sm:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-controls="mobile-nav"
+            aria-label={open ? 'Close menu' : 'Open menu'}
+            className="-mr-1.5 inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-canvas-sunken hover:text-ink"
+          >
+            <span aria-hidden="true" className="text-xl leading-none">
+              {open ? '✕' : '≡'}
+            </span>
+          </button>
+        </div>
       </Container>
 
       {/* Mobile dropdown panel. Rendered only when open; no animation so it
@@ -159,6 +165,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <RouteTitles />
+      <ScrollToTop />
       <div className="flex min-h-screen flex-col bg-canvas text-ink">
         {/* Skip link: the first focusable element, hidden until focused so
             keyboard users can jump straight past the nav to the page content. */}
@@ -169,7 +176,7 @@ export default function App() {
           Skip to main content
         </a>
         <Header />
-        <main id="main-content" className="flex-1">
+        <main id="main-content" tabIndex={-1} className="flex-1">
           <Suspense fallback={<RouteFallback />}>
             <PageTransition>
               <Routes>
@@ -186,6 +193,7 @@ export default function App() {
                 <Route path="/how-it-works" element={<HowItWorksPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/disclosure" element={<DisclosurePage />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </PageTransition>
           </Suspense>

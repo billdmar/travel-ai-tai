@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import FileResponse, JSONResponse
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.gzip import GZipMiddleware
 
 from api.cache import ItineraryCache
 from api.config import Settings, get_settings
@@ -127,6 +128,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Observability/security middleware (added before CORS so CORS runs
     # outermost). BE-HARDEN fills these stubs with real behavior.
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
     app.add_middleware(RequestIDMiddleware)
     # Opt-in Prometheus request metrics (no-op unless ENABLE_METRICS=true).
     if settings.enable_metrics:
