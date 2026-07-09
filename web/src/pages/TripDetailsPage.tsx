@@ -169,7 +169,7 @@ export default function TripDetailsPage() {
               </Field>
             </div>
             {!datesValid ? (
-              <p className="-mt-4 text-sm text-red-700">
+              <p role="alert" className="-mt-4 text-sm text-red-700">
                 End date must be on or after the start date.
               </p>
             ) : null}

@@ -1,38 +1,35 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
         // Warm off-white surfaces — the base canvas.
         canvas: {
-          DEFAULT: '#faf8f4', // page background (warm white)
-          raised: '#ffffff', // cards / framed surfaces
-          sunken: '#f1eee7', // subtle wells, hovers
+          DEFAULT: 'rgb(var(--canvas) / <alpha-value>)',
+          raised: 'rgb(var(--canvas-raised) / <alpha-value>)',
+          sunken: 'rgb(var(--canvas-sunken) / <alpha-value>)',
         },
         // Charcoal ink — text and structure (warm-neutral, never pure black).
         ink: {
-          DEFAULT: '#2b2a28',
-          soft: '#55524d', // secondary text
-          faint: '#8a857d', // captions, credits
-          // Hairline borders. Darkened from #e7e2d9 (only ~1.22:1 vs canvas) to
-          // a warm-neutral that clears WCAG 1.4.11 for UI-component boundaries:
-          // 3.11:1 vs canvas #faf8f4 and 3.30:1 vs raised white cards. Sits just
-          // above ink.faint on the same warm ramp so hairlines stay soft.
-          line: '#928d85',
+          DEFAULT: 'rgb(var(--ink) / <alpha-value>)',
+          soft: 'rgb(var(--ink-soft) / <alpha-value>)',
+          faint: 'rgb(var(--ink-faint) / <alpha-value>)',
+          line: 'rgb(var(--ink-line) / <alpha-value>)',
         },
         // The ONE accent: a muted blue-green. Tints/shades only.
         accent: {
-          50: '#eef4f3',
-          100: '#d6e6e3',
-          200: '#aecdc8',
-          300: '#82b0a9',
-          400: '#5a938b',
-          500: '#3f7a72', // primary accent
-          600: '#33645d',
-          700: '#2a504b',
-          800: '#223f3b',
-          900: '#1b322f',
+          50: 'rgb(var(--accent-50) / <alpha-value>)',
+          100: 'rgb(var(--accent-100) / <alpha-value>)',
+          200: 'rgb(var(--accent-200) / <alpha-value>)',
+          300: 'rgb(var(--accent-300) / <alpha-value>)',
+          400: 'rgb(var(--accent-400) / <alpha-value>)',
+          500: 'rgb(var(--accent-500) / <alpha-value>)',
+          600: 'rgb(var(--accent-600) / <alpha-value>)',
+          700: 'rgb(var(--accent-700) / <alpha-value>)',
+          800: 'rgb(var(--accent-800) / <alpha-value>)',
+          900: 'rgb(var(--accent-900) / <alpha-value>)',
         },
       },
       fontFamily: {

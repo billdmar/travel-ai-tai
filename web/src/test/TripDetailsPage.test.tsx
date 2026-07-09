@@ -116,6 +116,18 @@ describe('TripDetailsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/briefly unavailable/i)
   })
 
+  it('shows date validation error as an alert when end < start', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const endInput = screen.getByLabelText(/End date/)
+    // Set end date to a date clearly before the pre-filled start
+    await user.clear(endInput)
+    await user.type(endInput, '2020-01-01')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /End date must be on or after the start date/,
+    )
+  })
+
   it('in adjust mode pre-fills from the source prefs and regenerates', async () => {
     const user = userEvent.setup()
     regenerateMock.mockResolvedValue(makeItinerary({ id: 'it_regen' }))

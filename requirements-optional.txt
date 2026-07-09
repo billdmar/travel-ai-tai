@@ -7,6 +7,9 @@
 # OpenAI provider — only imported when LLM_PROVIDER=openai.
 openai>=1.0,<2
 
+# Anthropic provider — only imported when LLM_PROVIDER=anthropic.
+anthropic>=0.39,<1
+
 # Redis cache backend — only imported when CACHE_BACKEND=redis (graceful
 # fallback to in-memory if the import or connection fails).
 redis>=5.0,<6
