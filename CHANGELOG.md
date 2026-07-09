@@ -9,6 +9,40 @@ so the demo is reproducible without a paid provider.
 
 ---
 
+## [1.1.0] — 2026-07-08
+
+Second release: production polish, provider expansion, and frontend refinements.
+
+### Added
+- **Anthropic/Claude LLM provider** — completes support for all three major LLM APIs
+  (OpenAI, Google Gemini, Anthropic Claude). Same retry/fallback/mock-degradation pattern.
+- **Dark mode** with CSS-variable theming: system/light/dark toggle, persisted to localStorage.
+- **GZip response compression** (Starlette middleware, 1 KB threshold).
+- **CI security scanning** job: `pip-audit` for dependency CVEs + `bandit` for static analysis.
+- **GitHub Actions keep-alive cron** — pings `/health` every 14 minutes to prevent
+  Render free-tier cold starts (~22 s → instant).
+- **404 Not Found page** — branded error state for unmatched URLs.
+- **Scroll-to-top + focus management** on route change (WCAG 2.4.3 compliance).
+- **PWA install prompt** — custom banner surfaces the browser's Add-to-Home-Screen flow.
+- **OpenAPI request/response examples** — `/docs` Swagger UI prefilled for Try It Out.
+- **Property-based testing** with Hypothesis for model validation edge cases.
+- **ETag / conditional GET** on itinerary endpoints (returns 304 on cache hit).
+
+### Changed
+- TypeScript **strict mode** enabled across both tsconfig files (zero errors).
+- Extracted generic `AsyncTTLCache[T]` from duplicated patterns in OG + image routes.
+- Optional dependencies (`openai`, `redis`, `sentry-sdk`) split to `requirements-optional.txt`.
+- Full-package **mypy** coverage in CI (was scoped to models + LLM only).
+- Architecture docs, README test counts, and component references updated.
+
+### Fixed
+- `httpx` image proxy: shared `AsyncClient` on `app.state` (was per-request TCP+TLS).
+- `/ready` health checks run concurrently via `asyncio.gather` (halved worst-case latency).
+- Hero carousel: inactive slides now `aria-hidden`; form errors announced with `role="alert"`.
+- Results page persists recommendations to `sessionStorage` (survives refresh).
+
+---
+
 ## [1.0.0] — 2026-06-25
 
 First tagged release. A full‑stack, production‑deployed LLM travel‑itinerary generator

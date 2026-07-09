@@ -68,8 +68,16 @@ class AnthropicLLMProvider(LLMProvider):
             )
             TOKEN_COUNTER.add(tokens_used)
             logger.info("tokens_used=%d model=%s", tokens_used, self._model)
+            text_block = next(
+                (b for b in response.content if hasattr(b, "text")), None
+            )
+            if text_block is None:
+                raise LLMUnavailableError(
+                    "Anthropic response contained no text block"
+                )
             return LLMResult(
-                text=response.content[0].text, tokens_used=tokens_used
+                text=text_block.text,  # type: ignore[union-attr]
+                tokens_used=tokens_used,
             )
 
         try:

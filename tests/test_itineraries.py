@@ -432,7 +432,7 @@ async def test_docs_and_openapi_resolve_with_static_mount(client) -> None:
     # Route precedence: /docs and /openapi.json must win over any SPA mount.
     openapi = await client.get("/openapi.json")
     assert openapi.status_code == 200
-    assert openapi.json()["info"]["version"] == "1.0.0"
+    assert openapi.json()["info"]["version"] == "1.1.0"
     docs = await client.get("/docs")
     assert docs.status_code == 200
 
@@ -511,3 +511,44 @@ async def test_silent_fallback_surfaces_via_header(
     # The itinerary is still returned; fallback_reason is not persisted, so it is
     # surfaced only on this fresh generation response.
     assert resp.json()["fallback_reason"] == "gemini_unavailable: 429 quota exceeded"
+
+
+# ── ETag / conditional GET ────────────────────────────────────────────────────
+
+
+async def test_get_itinerary_returns_etag(client) -> None:
+    """GET /itineraries/{id} includes an ETag header on the response."""
+    created = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    resp = await client.get(f"/api/v1/itineraries/{created['id']}")
+    assert resp.status_code == 200
+    etag = resp.headers.get("etag")
+    assert etag is not None
+    assert etag.startswith('W/"') and etag.endswith('"')
+
+
+async def test_conditional_get_returns_304(client) -> None:
+    """GET with matching If-None-Match returns 304 and empty body."""
+    created = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    first = await client.get(f"/api/v1/itineraries/{created['id']}")
+    assert first.status_code == 200
+    etag = first.headers["etag"]
+
+    second = await client.get(
+        f"/api/v1/itineraries/{created['id']}",
+        headers={"If-None-Match": etag},
+    )
+    assert second.status_code == 304
+    assert second.headers.get("etag") == etag
+    assert second.content == b""
+
+
+async def test_conditional_get_mismatch_returns_200(client) -> None:
+    """GET with a non-matching If-None-Match still returns 200 with body."""
+    created = (await client.post("/api/v1/itineraries", json=_payload())).json()
+    resp = await client.get(
+        f"/api/v1/itineraries/{created['id']}",
+        headers={"If-None-Match": '"wrong"'},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["id"] == created["id"]
+    assert resp.headers.get("etag") is not None
