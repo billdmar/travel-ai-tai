@@ -233,7 +233,10 @@ def _configure_error_handlers(app: FastAPI) -> None:
         # generic envelope so loc/type/ctx schema internals never leak.
         logger.warning("validation_failed errors=%s", exc.errors())
         return JSONResponse(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            # Numeric literal rather than status.HTTP_422_* — Starlette 1.x
+            # renamed the constant (UNPROCESSABLE_ENTITY → UNPROCESSABLE_CONTENT)
+            # and deprecated the old alias; the code is stable across both.
+            status_code=422,
             content={
                 "error": "validation_failed",
                 "detail": "One or more fields were invalid.",
