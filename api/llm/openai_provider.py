@@ -21,6 +21,7 @@ from tenacity import (
 )
 
 from api.llm.provider import TOKEN_COUNTER, LLMProvider, LLMResult
+from api.models import GeneratedItinerary
 from api.recommend import LLMUnavailableError
 
 if TYPE_CHECKING:
@@ -57,7 +58,13 @@ class OpenAILLMProvider(LLMProvider):
         async def _call() -> LLMResult:
             response = await self._client.chat.completions.create(
                 model=self._model,
-                response_format={"type": "json_object"},
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "generated_itinerary",
+                        "schema": GeneratedItinerary.model_json_schema(),
+                    },
+                },
                 max_tokens=max_tokens,
                 timeout=self._settings.llm_timeout_seconds,
                 messages=[
