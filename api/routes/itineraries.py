@@ -8,11 +8,14 @@ handlers stay thin and the app factory owns construction.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -128,11 +131,26 @@ async def regenerate_itinerary(
 )
 async def get_itinerary(
     itinerary_id: UUID,
+    request: Request,
     session: AsyncSession = Depends(get_session),
-) -> ItineraryResponse:
-    """Retrieve a previously generated itinerary by id (404 if soft-deleted)."""
+) -> Response:
+    """Retrieve a previously generated itinerary by id (404 if soft-deleted).
+
+    Supports conditional GET via ``ETag`` / ``If-None-Match``: a weak ETag is
+    derived from the serialized response body and returned on every 200. If the
+    client sends the same value back in ``If-None-Match``, a 304 Not Modified is
+    returned with no body, saving bandwidth on unchanged resources.
+    """
     record = await get_itinerary_or_404(session, itinerary_id)
-    return record_to_response(record)
+    response_model = record_to_response(record)
+    body_json = response_model.model_dump_json()
+    etag = f'W/"{hashlib.md5(body_json.encode()).hexdigest()}"'
+
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and if_none_match == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+
+    return JSONResponse(content=json.loads(body_json), headers={"ETag": etag})
 
 
 @router.post("/itineraries/{itinerary_id}/save", response_model=ItineraryResponse)
