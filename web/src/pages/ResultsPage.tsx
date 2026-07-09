@@ -15,9 +15,20 @@ import {
   variableSerif,
 } from '../components/ui'
 
+const RESULTS_KEY = 'tai.lastResults'
+
 export default function ResultsPage() {
   const location = useLocation()
-  const state = location.state as ResultsLocationState | null
+  let state = location.state as ResultsLocationState | null
+
+  if (state?.recommendations?.length) {
+    try { sessionStorage.setItem(RESULTS_KEY, JSON.stringify(state)) } catch {}
+  } else {
+    try {
+      const cached = sessionStorage.getItem(RESULTS_KEY)
+      if (cached) state = JSON.parse(cached) as ResultsLocationState
+    } catch {}
+  }
 
   // Direct navigation / refresh loses router state — guide the user back.
   if (!state || !state.recommendations?.length) {

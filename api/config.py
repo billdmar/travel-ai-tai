@@ -31,11 +31,17 @@ class Settings(BaseSettings):
     # ── LLM provider ────────────────────────────────────────────────────────
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
-    llm_provider: Literal["openai", "mock", "langchain", "gemini"] = Field(
+    anthropic_api_key: str | None = Field(
+        default=None, alias="ANTHROPIC_API_KEY"
+    )
+    llm_provider: Literal["openai", "mock", "langchain", "gemini", "anthropic"] = Field(
         default="mock", alias="LLM_PROVIDER"
     )
     openai_model: str = Field(default="gpt-4o-mini", alias="OPENAI_MODEL")
     gemini_model: str = Field(default="gemini-2.0-flash", alias="GEMINI_MODEL")
+    anthropic_model: str = Field(
+        default="claude-sonnet-4-20250514", alias="ANTHROPIC_MODEL"
+    )
     max_tokens: int = Field(default=2000, alias="MAX_TOKENS", gt=0)
     # When a Gemini call fails after retries (e.g. free-tier quota / 429), serve a
     # mock result instead of a 503 so the live demo always returns something.

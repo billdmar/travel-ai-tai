@@ -70,6 +70,21 @@ jobs:
           DATABASE_URL: postgresql+asyncpg://tai:tai@localhost:5432/tai_test
           LLM_PROVIDER: mock
 
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install pip-audit bandit
+      - name: Dependency vulnerability scan
+        run: pip-audit -r requirements.txt -r requirements-optional.txt
+      - name: Static security analysis
+        run: bandit -r api/ -c pyproject.toml --severity-level medium
+
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
