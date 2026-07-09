@@ -8,6 +8,7 @@ rate limiting, and persistence — paired with a **React + Vite + TypeScript + T
 frontend.
 
 [![CI](https://github.com/billdmar/travel-ai-tai/actions/workflows/ci.yml/badge.svg)](https://github.com/billdmar/travel-ai-tai/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/billdmar/travel-ai-tai/graph/badge.svg)](https://codecov.io/gh/billdmar/travel-ai-tai)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-2.0_Flash-4285F4?logo=google&logoColor=white)

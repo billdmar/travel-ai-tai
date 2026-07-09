@@ -53,8 +53,25 @@ logger = logging.getLogger("tai.main")
 _WEB_DIST = Path(__file__).resolve().parent.parent / "web" / "dist"
 
 _DESCRIPTION = (
-    "LLM-powered personalized travel itinerary generator. Submit travel "
-    "preferences and receive a structured, day-by-day itinerary."
+    "Travel AI generates personalized, day-by-day travel itineraries from structured "
+    "preferences.\n\n"
+    "## Overview\n\n"
+    "Submit your destination, dates, budget, and interests — the API returns a validated "
+    "itinerary with per-activity timing, cost breakdowns, map links, and booking URLs. "
+    "Responses are cached by preference fingerprint so identical requests return the same "
+    "itinerary without re-calling the LLM.\n\n"
+    "## Providers\n\n"
+    "The LLM backend is pluggable: **OpenAI**, **Google Gemini**, **Anthropic Claude**, or a "
+    "deterministic **mock** (used for testing and the live demo). Set `LLM_PROVIDER` to switch.\n\n"
+    "## Rate Limiting\n\n"
+    "Write endpoints are capped at 10 req/min/IP. Read endpoints allow 60 req/min/IP. "
+    "Exceeding the limit returns `429` with a `Retry-After` header.\n\n"
+    "## Error Codes\n\n"
+    "All errors return `{\"error\": \"<code>\"}`. Common codes:\n"
+    "- `itinerary_not_found` (404)\n"
+    "- `rate_limit_exceeded` (429)\n"
+    "- `itinerary_parse_failed` (502)\n"
+    "- `llm_unavailable` (503)\n"
 )
 
 
@@ -115,6 +132,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         description=_DESCRIPTION,
         version=settings.version,
         contact={"name": "William Mar"},
+        license_info={"name": "MIT", "identifier": "MIT"},
+        openapi_tags=[
+            {"name": "health", "description": "Liveness and readiness probes"},
+            {
+                "name": "itineraries",
+                "description": "Generate, retrieve, edit, and export travel itineraries",
+            },
+            {"name": "destinations", "description": "Discover and browse travel destinations"},
+            {"name": "images", "description": "Server-side image proxy (Unsplash)"},
+            {"name": "share", "description": "Public read-only share links"},
+        ],
         lifespan=lifespan,
     )
 
