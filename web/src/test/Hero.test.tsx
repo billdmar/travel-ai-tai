@@ -79,6 +79,15 @@ describe('Hero (reduced motion)', () => {
     renderHero()
     expect(setInterval).not.toHaveBeenCalled()
   })
+
+  it('marks the first slide with fetchpriority="high" for optimal LCP', () => {
+    forceReducedMotion()
+    renderHero()
+    const firstAlt = HERO_SLIDES[0].alt
+    const img = screen.getByRole('img', { name: firstAlt })
+    expect(img).toHaveAttribute('fetchpriority', 'high')
+    expect(img).toHaveAttribute('loading', 'eager')
+  })
 })
 
 describe('Hero "Surprise me" CTA', () => {

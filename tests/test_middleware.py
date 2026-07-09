@@ -279,3 +279,23 @@ async def test_metrics_endpoint_absent_when_not_wired(client) -> None:
     assert "text/plain" not in resp.headers.get("content-type", "")
     assert "request_count" not in resp.text
     assert "request_duration_seconds" not in resp.text
+
+
+# ── GZipMiddleware ───────────────────────────────────────────────────────────
+async def test_gzip_compression(client) -> None:
+    """Responses above the minimum_size threshold are gzip-compressed."""
+    payload = {
+        "destination": "Tokyo, Japan",
+        "start_date": "2026-07-01",
+        "end_date": "2026-07-03",
+        "budget_usd": 1500.0,
+        "interests": ["food"],
+    }
+    resp = await client.post(
+        "/api/v1/itineraries",
+        json=payload,
+        headers={"Accept-Encoding": "gzip"},
+    )
+
+    assert resp.status_code == 201
+    assert "gzip" in resp.headers.get("content-encoding", "")

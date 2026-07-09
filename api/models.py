@@ -20,7 +20,7 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 logger = logging.getLogger("tai.models")
 
@@ -61,6 +61,26 @@ class ErrorResponse(BaseModel):
 
 class TravelPreferences(BaseModel):
     """Structured user input that drives itinerary generation."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "destination": "Kyoto, Japan",
+                    "start_date": "2025-04-01",
+                    "end_date": "2025-04-05",
+                    "budget_usd": 2000,
+                    "interests": ["temples", "food", "gardens"],
+                    "pace": "moderate",
+                    "travel_style": "midrange",
+                    "dietary_needs": [],
+                    "accessibility_needs": [],
+                    "group_size": 2,
+                    "notes": "First time visiting Japan",
+                }
+            ]
+        }
+    )
 
     destination: str = Field(..., max_length=MAX_DESTINATION_LEN, min_length=1)
     start_date: date
@@ -262,6 +282,17 @@ MAX_HOBBIES = MAX_INTERESTS
 
 class HobbyRecommendationRequest(BaseModel):
     """User input for the discovery flow: hobbies plus optional free text."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "hobbies": ["hiking", "photography", "local food"],
+                    "free_text": "Looking for somewhere warm in March",
+                }
+            ]
+        }
+    )
 
     hobbies: list[str] = Field(default_factory=list, max_length=MAX_HOBBIES)
     free_text: str | None = Field(None, max_length=2000)

@@ -16,6 +16,7 @@ function renderPage(state?: unknown) {
 describe('ResultsPage', () => {
   beforeEach(() => {
     stubImageFetch()
+    sessionStorage.clear()
   })
   afterEach(() => vi.restoreAllMocks())
 
@@ -58,5 +59,29 @@ describe('ResultsPage', () => {
     // keeps keyboard activation + right-click "open in new tab" working.
     const card = screen.getByRole('link', { name: /Kyoto/ })
     expect(card).toHaveAttribute('href', '/plan/Kyoto')
+  })
+
+  it('persists valid results state to sessionStorage', () => {
+    const state = {
+      hobbies: ['Food'],
+      recommendations: [makeRecommendation({ name: 'Kyoto', country: 'Japan' })],
+    }
+    renderPage(state)
+    const stored = sessionStorage.getItem('tai.lastResults')
+    expect(stored).not.toBeNull()
+    expect(JSON.parse(stored!)).toEqual(state)
+  })
+
+  it('restores results from sessionStorage when location state is null', () => {
+    const state = {
+      hobbies: ['History'],
+      recommendations: [
+        makeRecommendation({ name: 'Rome', country: 'Italy', why_it_fits: 'Colosseum.' }),
+      ],
+    }
+    sessionStorage.setItem('tai.lastResults', JSON.stringify(state))
+    renderPage(null)
+    expect(screen.getByRole('heading', { name: 'Rome' })).toBeInTheDocument()
+    expect(screen.getByText('Colosseum.')).toBeInTheDocument()
   })
 })
