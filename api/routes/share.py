@@ -11,9 +11,12 @@ there is no save/delete here.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db import get_session
@@ -50,13 +53,24 @@ async def create_share_link(
 )
 async def get_shared_itinerary(
     token: str,
+    request: Request,
     session: AsyncSession = Depends(get_session),
-) -> ItineraryResponse:
-    """Return the read-only itinerary for a share token (404 if unknown)."""
-    response = await lookup_share_token(session, token)
-    if response is None:
+) -> Response:
+    """Return the read-only itinerary for a share token (404 if unknown).
+
+    Supports conditional GET via ``ETag`` / ``If-None-Match``.
+    """
+    response_model = await lookup_share_token(session, token)
+    if response_model is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "share_token_not_found"},
         )
-    return response
+    body_json = response_model.model_dump_json()
+    etag = f'W/"{hashlib.md5(body_json.encode()).hexdigest()}"'
+
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match and if_none_match == etag:
+        return Response(status_code=304, headers={"ETag": etag})
+
+    return JSONResponse(content=json.loads(body_json), headers={"ETag": etag})

@@ -10,6 +10,7 @@ import { Container, ThemeToggle } from './components/ui'
 import PageTransition from './components/PageTransition'
 import ScrollToTop from './components/ScrollToTop'
 import RouteTitles from './seo/RouteTitles'
+import InstallBanner from './pwa/InstallBanner'
 
 // Lazy routes. Pages owned by Terminal 1 (Home/Discover/Results/TripDetails)
 // and Terminal 2 (Itinerary/Saved/HowItWorks/About/Disclosure). Terminal 2's
@@ -198,6 +199,7 @@ export default function App() {
             </PageTransition>
           </Suspense>
         </main>
+        <InstallBanner />
         <Footer />
       </div>
     </BrowserRouter>

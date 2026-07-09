@@ -19,8 +19,8 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: Lint
         run: ruff check api/ tests/
-      - name: Type-check (scoped, blocking)
-        run: mypy api/models.py api/llm/
+      - name: Type-check (full api/ package)
+        run: mypy api/ --ignore-missing-imports
       - name: Tests (mock provider — no API key needed)
         run: pytest -q --cov=api --cov-report=term-missing --cov-report=xml --cov-fail-under=90
         env:
