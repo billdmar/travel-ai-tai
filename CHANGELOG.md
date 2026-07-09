@@ -9,6 +9,27 @@ so the demo is reproducible without a paid provider.
 
 ---
 
+## [Unreleased]
+
+### Security
+- Upgraded **Starlette 0.46 → 1.3.1** (via **FastAPI → 0.139**) to clear 8 known
+  CVEs flagged by the CI `pip-audit` job (PYSEC-2026-161/248/249/1941/1942,
+  CVE-2026-48817/48818). `pip-audit` now reports zero vulnerabilities.
+
+### Fixed
+- **CI was red on `main`** — three jobs failed (now green):
+  - `test_hardening` static-asset tests now **skip** when `web/dist` is absent
+    (the Python-only `backend` CI job doesn't run the Node build), instead of
+    asserting a built frontend that only exists after `npm run build`.
+  - `test_default_database_url_is_sqlite` now clears the ambient `DATABASE_URL`
+    (the `backend-postgres` job exports it) so it asserts the true zero-config default.
+  - Route-wiring tests traverse Starlette 1.x's `_IncludedRouter` wrapper
+    (`include_router` no longer flattens sub-routes into `app.routes`).
+- Validation-error handler uses the numeric `422` literal (Starlette 1.x renamed
+  `HTTP_422_UNPROCESSABLE_ENTITY` → `HTTP_422_UNPROCESSABLE_CONTENT`).
+
+---
+
 ## [1.1.0] — 2026-07-08
 
 Second release: production polish, provider expansion, and frontend refinements.

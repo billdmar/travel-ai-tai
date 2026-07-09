@@ -8,6 +8,32 @@ from api.models import ItineraryResponse
 from api.recommend import LLMUnavailableError, RecommendationEngine
 
 
+def _iter_api_routes(app):
+    """Yield every APIRoute, flattening Starlette 1.x's ``_IncludedRouter`` wrapper.
+
+    Starlette 0.x flattened ``include_router`` sub-routes directly into
+    ``app.routes``; 1.x wraps each included router in an ``_IncludedRouter``
+    (``path=None``) whose real routes hang off ``original_router.routes``. This
+    walks both shapes so route-wiring assertions survive the version bump.
+    """
+    for route in app.routes:
+        if getattr(route, "path", None) is not None:
+            yield route
+        original = getattr(route, "original_router", None)
+        if original is not None:
+            yield from getattr(original, "routes", [])
+
+
+def _route_dependencies(app, path: str, method: str) -> list:
+    """Return the dependency callables wired onto ``method path``."""
+    for route in _iter_api_routes(app):
+        if getattr(route, "path", None) == path and method in (
+            getattr(route, "methods", set()) or set()
+        ):
+            return [d.call for d in route.dependant.dependencies]
+    raise AssertionError(f"route not found: {method} {path}")
+
+
 def _payload(**overrides) -> dict:
     base = {
         "destination": "Tokyo, Japan",
@@ -110,16 +136,10 @@ def test_regenerate_wires_create_write_rate_limit(app) -> None:
     # one ``rate_limit`` dependency callable.
     from api.ratelimit import rate_limit
 
-    def _deps(path: str, method: str) -> list:
-        for route in app.routes:
-            if getattr(route, "path", None) == path and method in getattr(
-                route, "methods", set()
-            ):
-                return [d.call for d in route.dependant.dependencies]
-        raise AssertionError(f"route not found: {method} {path}")
-
-    create_deps = _deps("/api/v1/itineraries", "POST")
-    regen_deps = _deps("/api/v1/itineraries/{itinerary_id}/regenerate", "POST")
+    create_deps = _route_dependencies(app, "/api/v1/itineraries", "POST")
+    regen_deps = _route_dependencies(
+        app, "/api/v1/itineraries/{itinerary_id}/regenerate", "POST"
+    )
     assert rate_limit in create_deps
     assert rate_limit in regen_deps
 
@@ -326,18 +346,11 @@ async def test_edit_endpoints_carry_write_rate_limit(app) -> None:
     # POST /itineraries (rate limiting is off in tests, so assert the wiring).
     from api.ratelimit import rate_limit
 
-    def _deps(path: str, method: str) -> list:
-        for route in app.routes:
-            if getattr(route, "path", None) == path and method in getattr(
-                route, "methods", set()
-            ):
-                return [d.call for d in route.dependant.dependencies]
-        raise AssertionError(f"route not found: {method} {path}")
-
-    put_deps = _deps(
-        "/api/v1/itineraries/{itinerary_id}/days/{day_number}/activities", "PUT"
+    put_deps = _route_dependencies(
+        app, "/api/v1/itineraries/{itinerary_id}/days/{day_number}/activities", "PUT"
     )
-    del_deps = _deps(
+    del_deps = _route_dependencies(
+        app,
         "/api/v1/itineraries/{itinerary_id}/days/{day_number}/activities/{activity_index}",
         "DELETE",
     )

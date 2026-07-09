@@ -38,8 +38,15 @@ def test_settings_is_postgres_flag() -> None:
     assert Settings(DATABASE_URL=_SQLITE_URL).is_postgres is False
 
 
-def test_default_database_url_is_sqlite() -> None:
-    """Out of the box (no env override) we fall back to ephemeral SQLite."""
+def test_default_database_url_is_sqlite(monkeypatch) -> None:
+    """Out of the box (no env override) we fall back to ephemeral SQLite.
+
+    ``_env_file=None`` disables the ``.env`` file but pydantic-settings still
+    reads ``os.environ``; the ``backend-postgres`` CI job exports
+    ``DATABASE_URL`` for its whole step, so clear it here to assert the true
+    zero-config default rather than the job's ambient override.
+    """
+    monkeypatch.delenv("DATABASE_URL", raising=False)
     assert Settings(_env_file=None).is_postgres is False
 
 
