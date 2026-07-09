@@ -15,6 +15,50 @@
   --dur-reveal: 600ms;
   --dur-route: 500ms;
   --dur-hover: 240ms;
+
+  /* === Color tokens (RGB triplets for Tailwind alpha compositing) === */
+  --canvas: 250 248 244;         /* #faf8f4 — warm white page bg */
+  --canvas-raised: 255 255 255;  /* #ffffff — cards / framed surfaces */
+  --canvas-sunken: 241 238 231;  /* #f1eee7 — subtle wells, hovers */
+
+  --ink: 43 42 40;               /* #2b2a28 — primary text */
+  --ink-soft: 85 82 77;          /* #55524d — secondary text */
+  --ink-faint: 138 133 125;      /* #8a857d — captions, credits */
+  --ink-line: 146 141 133;       /* #928d85 — hairline borders */
+
+  --accent-50: 238 244 243;      /* #eef4f3 */
+  --accent-100: 214 230 227;     /* #d6e6e3 */
+  --accent-200: 174 205 200;     /* #aecdc8 */
+  --accent-300: 130 176 169;     /* #82b0a9 */
+  --accent-400: 90 147 139;      /* #5a938b */
+  --accent-500: 63 122 114;      /* #3f7a72 — primary accent */
+  --accent-600: 51 100 93;       /* #33645d */
+  --accent-700: 42 80 75;        /* #2a504b */
+  --accent-800: 34 63 59;        /* #223f3b */
+  --accent-900: 27 50 47;        /* #1b322f */
+}
+
+/* Dark mode color overrides — inverted canvas/ink, accent adjusted for contrast */
+.dark {
+  --canvas: 28 27 25;             /* deep warm dark */
+  --canvas-raised: 38 37 34;     /* elevated cards */
+  --canvas-sunken: 22 21 19;     /* recessed wells */
+
+  --ink: 240 238 233;            /* light warm text */
+  --ink-soft: 190 186 180;       /* secondary text */
+  --ink-faint: 140 135 128;      /* captions */
+  --ink-line: 70 67 62;          /* borders (lighter in dark) */
+
+  --accent-50: 27 50 47;         /* inverted: darkest tint for backgrounds */
+  --accent-100: 34 63 59;
+  --accent-200: 42 80 75;
+  --accent-300: 51 100 93;
+  --accent-400: 90 147 139;
+  --accent-500: 110 190 178;     /* brighter for dark bg contrast */
+  --accent-600: 150 210 200;
+  --accent-700: 190 230 225;     /* lighter for text-on-dark */
+  --accent-800: 214 230 227;
+  --accent-900: 238 244 243;
 }
 
 html,
@@ -36,8 +80,8 @@ body {
   letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #faf8f4; /* canvas */
-  color: #2b2a28; /* ink */
+  background-color: rgb(var(--canvas));
+  color: rgb(var(--ink));
 }
 
 /* Crisp serif rendering. Cormorant Garamond is a high-contrast display serif;
@@ -58,7 +102,7 @@ body {
    the ring authoritative so focus is always visible; it only paints on
    keyboard/`:focus-visible`, so pointer interactions are unaffected. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid #3f7a72 !important;
+  outline: 2px solid rgb(var(--accent-500)) !important;
   outline-offset: 2px !important;
 }
 

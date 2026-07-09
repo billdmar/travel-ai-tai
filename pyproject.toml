@@ -26,3 +26,6 @@ python_version = "3.11"
 # Silencing missing-import noise keeps the scoped, blocking type-check signal
 # focused on our own code rather than untyped upstream packages.
 ignore_missing_imports = true
+
+[tool.bandit]
+exclude_dirs = ["tests", "migrations"]

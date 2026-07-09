@@ -43,7 +43,7 @@ class LLMProvider(ABC):
     #: Stable provider identifier persisted on each itinerary record. The
     #: ``Literal`` matches ``ItineraryResponse.provider`` so the value can flow
     #: straight into the response/record without a cast.
-    name: Literal["openai", "mock", "langchain", "gemini"]
+    name: Literal["openai", "mock", "langchain", "gemini", "anthropic"]
 
     @abstractmethod
     async def complete(self, system: str, user: str, max_tokens: int) -> LLMResult:
@@ -97,6 +97,7 @@ def get_provider(settings: Settings) -> LLMProvider:
         provider == "mock"
         or (provider in ("openai", "langchain") and not settings.openai_api_key)
         or (provider == "gemini" and not settings.gemini_api_key)
+        or (provider == "anthropic" and not settings.anthropic_api_key)
     )
     if fall_back_to_mock:
         from api.llm.mock_provider import MockLLMProvider
@@ -117,6 +118,11 @@ def get_provider(settings: Settings) -> LLMProvider:
         from api.llm.gemini_provider import GeminiLLMProvider
 
         return GeminiLLMProvider(settings)
+
+    if provider == "anthropic":
+        from api.llm.anthropic_provider import AnthropicLLMProvider
+
+        return AnthropicLLMProvider(settings)
 
     # Unreachable given the Literal type on the setting, but explicit is safe.
     raise ValueError(f"Unknown LLM_PROVIDER: {provider!r}")
