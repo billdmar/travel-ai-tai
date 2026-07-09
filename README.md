@@ -11,13 +11,14 @@ frontend.
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-2.0_Flash-4285F4?logo=google&logoColor=white)
+![Anthropic](https://img.shields.io/badge/Anthropic-Claude-191919?logo=anthropic&logoColor=white)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Open_App-brightgreen?style=flat-square)](https://travel-ai-tai.onrender.com)
 
 **🔗 Live demo:** [https://travel-ai-tai.onrender.com](https://travel-ai-tai.onrender.com) — runs in mock-LLM mode (no API key), so itineraries are generated from a deterministic stub. _Free tier sleeps when idle; first request may take ~30s to wake._
 
-**📦 Latest release:** [v1.0.0](https://github.com/billdmar/travel-ai-tai/releases/tag/v1.0.0) — see the [CHANGELOG](CHANGELOG.md) for the full history.
+**📦 Latest release:** [v1.1.0](https://github.com/billdmar/travel-ai-tai/releases/tag/v1.1.0) — see the [CHANGELOG](CHANGELOG.md) for the full history.
 
 <p align="center">
   <img src="docs/screenshots/best/home-desktop-slide1-amadablam.png" alt="Travel AI home page — a masked photographic hero with the serif headline “Trips that begin with what you love.”" width="100%">
@@ -33,8 +34,8 @@ frontend.
 - **Recommendation engine** — maps structured preferences into an engineered LLM prompt,
   enforces JSON output, and validates every response against a Pydantic schema. The LLM
   never invents server-owned fields (id, timestamps) — those are attached server-side.
-- **Pluggable LLM providers** — OpenAI (default), a deterministic **mock** (used by all
-  tests and local dev, zero cost / no key), Gemini, and an optional LangChain wrapper.
+- **Pluggable LLM providers** — OpenAI, Gemini, Anthropic (Claude), a deterministic
+  **mock** (used by all tests and local dev, zero cost / no key), and an optional LangChain wrapper.
 - **Destination discovery** — turn a few hobbies (plus optional free text) into 4–6
   tailored destination ideas via `POST /api/v1/destinations/recommend`, each with a fit
   rationale, tags, best season, and an image query.
@@ -47,6 +48,7 @@ frontend.
   graceful `{fallback:true}` envelope and the UI shows a bundled placeholder.
 - **Production-style API** — async handlers, response caching, per-IP rate limiting,
   retry/backoff, soft-delete, pagination, and auto-generated OpenAPI docs at `/docs`.
+- **Dark mode** — a CSS-variable theme system with a system/light/dark toggle, persisted to localStorage.
 - **Polished frontend** — a destination-discovery flow, a trip preference form,
   collapsible day cards with Map + Book links, an FTC affiliate-disclosure banner, a
   saved-trips page, and friendly error states for validation / rate-limit / LLM-unavailable
@@ -195,12 +197,14 @@ To enable real OpenAI generation, add an `OPENAI_API_KEY` env var and set
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `LLM_PROVIDER` | `mock` | `openai` \| `mock` \| `gemini` \| `langchain` (falls back to mock if no key) |
+| `LLM_PROVIDER` | `mock` | `openai` \| `mock` \| `gemini` \| `anthropic` \| `langchain` (falls back to mock if no key) |
 | `OPENAI_API_KEY` | — | Required for the OpenAI/LangChain providers |
 | `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI chat model |
 | `GEMINI_API_KEY` | — | Required for the `gemini` provider |
 | `GEMINI_MODEL` | `gemini-2.0-flash` | Gemini model |
 | `GEMINI_FALLBACK_TO_MOCK` | `true` | On Gemini failure (e.g. free-tier 429) serve a mock result instead of a `503`, so the live demo always returns something |
+| `ANTHROPIC_API_KEY` | — | Required for the anthropic provider |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-20250514` | Anthropic chat model |
 | `MAX_TOKENS` | `2000` | Per-completion token cap (cost control) |
 | `LLM_TIMEOUT_SECONDS` | `30.0` | Upper bound for a single LLM generation call before it's treated as a failure |
 | `HTTP_TIMEOUT_SECONDS` | `10.0` | Timeout for outbound HTTP calls (e.g. the Unsplash image proxy) |
@@ -246,8 +250,8 @@ The backend is built to serve many concurrent users; these are the concrete mech
 
 ## Testing
 
-A **240-test backend** suite (pytest) runs entirely against the mock LLM provider — no
-API key and no network — so it's fast and deterministic in CI, alongside a **178-test
+A **250+ test backend** suite (pytest) runs entirely against the mock LLM provider — no
+API key and no network — so it's fast and deterministic in CI, alongside a **190+ test
 frontend** suite (Vitest + Testing Library). Backend coverage spans the cache-hit identity
 guarantee, rate-limit isolation (429), error mapping (503/502), request validation,
 destination discovery, affiliate-link generation (plain vs. tagged), the Unsplash image

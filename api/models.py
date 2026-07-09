@@ -195,7 +195,7 @@ class ItineraryResponse(BaseModel):
     currency: str = "USD"
     summary: str
     tips: list[str]
-    provider: Literal["openai", "mock", "langchain", "gemini"]
+    provider: Literal["openai", "mock", "langchain", "gemini", "anthropic"]
     tokens_used: int | None = None
     #: Whether the user has explicitly saved this itinerary (vs. a draft).
     saved: bool = False
@@ -214,7 +214,7 @@ class ItineraryResponse(BaseModel):
         created_at: datetime,
         preferences: TravelPreferences,
         generated: GeneratedItinerary,
-        provider: Literal["openai", "mock", "langchain", "gemini"],
+        provider: Literal["openai", "mock", "langchain", "gemini", "anthropic"],
         tokens_used: int | None,
         saved: bool = False,
         fallback_reason: str | None = None,

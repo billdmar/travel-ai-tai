@@ -71,7 +71,7 @@ async def recommend_destinations(
         raise_llm_unavailable()
 
     try:
-        result = DestinationRecommendationResponse.model_validate_json(raw)
+        parsed = DestinationRecommendationResponse.model_validate_json(raw)
     except ValidationError as exc:
         logger.warning("destinations_parse_failed raw=%r", raw[:_RAW_LOG_LIMIT])
         raise HTTPException(
@@ -79,7 +79,7 @@ async def recommend_destinations(
             detail={"error": "destinations_parse_failed"},
         ) from exc
 
-    count = len(result.recommendations)
+    count = len(parsed.recommendations)
     if not MIN_DESTINATIONS <= count <= MAX_DESTINATIONS:
         logger.warning(
             "destinations_count_out_of_range count=%d (want %d-%d)",
@@ -92,4 +92,4 @@ async def recommend_destinations(
             detail={"error": "destinations_parse_failed"},
         )
 
-    return result
+    return parsed

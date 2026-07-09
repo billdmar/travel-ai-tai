@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     )
 
     # ── Application identity ────────────────────────────────────────────────
-    version: str = "1.0.0"
+    version: str = "1.1.0"
 
     # ── LLM provider ────────────────────────────────────────────────────────
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
