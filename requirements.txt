@@ -1,5 +1,9 @@
 # Core backend — pinned to majors to avoid resolution rabbit holes (see PLAN F5).
-fastapi>=0.110,<0.116
+# starlette is pinned to >=1.3.1 to clear 8 CVEs (PYSEC-2026-161/248/249/1941/1942,
+# CVE-2026-48817/48818) flagged by the CI pip-audit job; FastAPI 0.135+ dropped its
+# starlette<0.47 cap and supports starlette 1.x, so the pair moves up together.
+fastapi>=0.135,<0.140
+starlette>=1.3.1,<2
 uvicorn[standard]>=0.27,<0.35
 pydantic>=2.7,<3
 pydantic-settings>=2.2,<3
