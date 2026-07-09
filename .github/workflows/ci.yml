@@ -25,6 +25,13 @@ jobs:
         run: pytest -q --cov=api --cov-report=term-missing --cov-report=xml --cov-fail-under=90
         env:
           LLM_PROVIDER: mock
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push'
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          flags: backend
+          fail_ci_if_error: false
 
   backend-postgres:
     # Exercises the Alembic migration chain + rollback against a real Postgres
@@ -99,3 +106,10 @@ jobs:
       - run: cd web && npm run build
       - name: Unit tests + coverage gate (vitest)
         run: cd web && npm run test:cov
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push'
+        uses: codecov/codecov-action@v5
+        with:
+          directory: web/coverage
+          flags: frontend
+          fail_ci_if_error: false
