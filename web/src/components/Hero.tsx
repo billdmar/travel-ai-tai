@@ -27,6 +27,8 @@ interface KenBurnsImageProps {
   reduced: boolean
   /** When set, the image is clipped to the subject and layered over the text. */
   clip?: string
+  /** When true, the image is treated as the LCP candidate (eager load, high fetch priority). */
+  priority?: boolean
 }
 
 /**
@@ -34,7 +36,7 @@ interface KenBurnsImageProps {
  * zooms + pans (Ken Burns). The masked over-text copy reuses this with the same
  * `active` and motion params so it stays pixel-aligned with the background.
  */
-function KenBurnsImage({ slide, active, reduced, clip }: KenBurnsImageProps) {
+function KenBurnsImage({ slide, active, reduced, clip, priority = false }: KenBurnsImageProps) {
   const pan = PAN[slide.focus ?? 'center']
   const clipStyle = clip ? { clipPath: clip, WebkitClipPath: clip } : undefined
   // Masked copies are always decorative; inactive slides are invisible
@@ -48,6 +50,8 @@ function KenBurnsImage({ slide, active, reduced, clip }: KenBurnsImageProps) {
         src={slide.src}
         alt={hidden ? '' : slide.alt}
         aria-hidden={hidden ? true : undefined}
+        fetchPriority={priority ? 'high' : 'low'}
+        loading={priority ? 'eager' : 'lazy'}
         className="absolute inset-0 h-full w-full object-cover"
         style={clipStyle}
       />
@@ -59,6 +63,8 @@ function KenBurnsImage({ slide, active, reduced, clip }: KenBurnsImageProps) {
       src={slide.src}
       alt={hidden ? '' : slide.alt}
       aria-hidden={hidden ? true : undefined}
+      fetchPriority={priority ? 'high' : 'low'}
+      loading={priority ? 'eager' : 'lazy'}
       className="absolute inset-0 h-full w-full object-cover will-change-transform"
       style={clipStyle}
       initial={false}
@@ -140,6 +146,7 @@ export default function Hero() {
             slide={slide}
             active={reduced || i === index}
             reduced={reduced}
+            priority={i === 0}
           />
         ))}
       </div>

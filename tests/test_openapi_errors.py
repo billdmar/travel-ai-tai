@@ -115,6 +115,15 @@ def test_runtime_error_codes_documented(
     assert _response_ref(schema, method, path, code) == _ERROR_REF
 
 
+def test_travel_preferences_has_openapi_examples(schema: dict) -> None:
+    """TravelPreferences schema advertises request/response examples."""
+    tp_schema = schema["components"]["schemas"]["TravelPreferences"]
+    assert "examples" in tp_schema, "TravelPreferences missing 'examples' key"
+    examples = tp_schema["examples"]
+    assert len(examples) >= 1
+    assert "destination" in examples[0]
+
+
 def test_openapi_schema_is_cached(schema: dict) -> None:
     """The override caches like the stock generator (same object on re-call)."""
     app = create_app(
