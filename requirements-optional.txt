@@ -12,7 +12,7 @@ anthropic>=0.39,<1
 
 # Redis cache backend — only imported when CACHE_BACKEND=redis (graceful
 # fallback to in-memory if the import or connection fails).
-redis>=5.0,<6
+redis>=8.0.1,<9
 
 # Opt-in error tracking — imported lazily by api/observability.py and only
 # initialised when SENTRY_DSN is set.
