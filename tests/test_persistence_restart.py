@@ -1,4 +1,4 @@
-"""Persistence-survives-restart test (PLAN adversarial-review #2).
+"""Persistence-survives-restart test.
 
 Uses a temp FILE-backed SQLite DB: write a record through one engine, dispose
 it (simulating a process restart), reopen a fresh engine against the same file,

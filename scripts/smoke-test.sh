@@ -41,8 +41,8 @@ check GET  /docs 200
 check GET  /openapi.json 200
 check GET  /api/v1/destinations/curated 200
 check POST /api/v1/destinations/recommend 200 '{"hobbies":["hiking"]}'
-check POST /api/v1/preferences/validate 200 '{"destination":"Tokyo","start_date":"2026-08-01","end_date":"2026-08-05","budget":"medium","interests":["culture"]}'
-check POST /api/v1/itineraries 201 '{"destination":"Tokyo","start_date":"2026-08-01","end_date":"2026-08-05","budget":"medium","interests":["culture"]}'
+check POST /api/v1/preferences/validate 200 '{"destination":"Tokyo","start_date":"2026-08-01","end_date":"2026-08-05","budget_usd":2000,"interests":["culture"]}'
+check POST /api/v1/itineraries 201 '{"destination":"Tokyo","start_date":"2026-08-01","end_date":"2026-08-05","budget_usd":2000,"interests":["culture"]}'
 check GET  "/api/v1/images?query=kyoto" 200
 
 echo ""

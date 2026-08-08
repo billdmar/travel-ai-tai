@@ -7,9 +7,18 @@
  * subtle horizon motif and the place name, so a missing photo still reads as
  * intentional design rather than a broken image.
  *
- * Run once to (re)generate assets; sharp is a dev-only, --no-save tool and is
- * intentionally NOT a project dependency. The committed .webp outputs are what
- * ships. Usage:  node scripts/gen-destination-assets.mjs
+ * sharp is a dev-only, --no-save tool and is intentionally NOT a project
+ * dependency. The committed .webp outputs are what ships.
+ * Usage:  node scripts/gen-destination-assets.mjs
+ *
+ * SCOPE: this script defines the ORIGINAL curated subset (the DESTINATIONS
+ * array below — 20 destinations + the generic fallback). The shipped asset set
+ * in src/assets/destinations/ has since grown well beyond this list; those
+ * later frames were generated with the same routine but their palette pairs are
+ * not tracked here, so re-running regenerates only the slugs listed below and
+ * leaves the rest untouched. Add a destination's { slug, label, from, to } here
+ * before regenerating it. index.ts loads whatever .webp files are present, so
+ * missing entries here do not affect the running app — only reproducibility.
  */
 import sharp from 'sharp'
 import { mkdir } from 'node:fs/promises'
@@ -87,7 +96,10 @@ async function main() {
     await sharp(buf).webp({ quality: 82 }).toFile(out)
     console.log('wrote', out)
   }
-  console.log(`\nDone: ${DESTINATIONS.length} assets in ${OUT_DIR}`)
+  console.log(
+    `\nDone: regenerated ${DESTINATIONS.length} curated-subset assets in ${OUT_DIR}. ` +
+      `Other shipped frames in that directory are not defined here and were left untouched.`,
+  )
 }
 
 main().catch((err) => {
