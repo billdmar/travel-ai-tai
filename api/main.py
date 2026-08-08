@@ -154,7 +154,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.cache = cache
 
     # Observability/security middleware (added before CORS so CORS runs
-    # outermost). BE-HARDEN fills these stubs with real behavior.
+    # outermost): security headers, GZip, and request-id tracing.
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(GZipMiddleware, minimum_size=1000)
     app.add_middleware(RequestIDMiddleware)

@@ -9,9 +9,9 @@ Provides:
   ``get_session`` dependency overridden to inject the test sessionmaker.
 * ``client`` — an ``httpx.AsyncClient`` driven through ``ASGITransport`` and
   wrapped in ``asgi-lifespan``'s ``LifespanManager`` (the app lifespan runs DB
-  init), per PLAN adversarial-review #7.
+  init).
 * an autouse fixture that creates all tables before and drops them after each
-  test (PLAN #2 — ``Base.metadata.create_all``, not Alembic).
+  test (via ``Base.metadata.create_all``, not Alembic).
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def test_settings() -> Settings:
 
 @pytest.fixture
 def engine(test_settings: Settings):
-    """A single StaticPool in-memory engine shared across the test (PLAN #2)."""
+    """A single StaticPool in-memory engine shared across the test."""
     return create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -69,7 +69,7 @@ def sessionmaker(engine) -> async_sessionmaker:
 
 @pytest.fixture(autouse=True)
 async def _create_schema(engine) -> AsyncIterator[None]:
-    """Create all tables before each test, drop them after (PLAN #2)."""
+    """Create all tables before each test, drop them after."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield

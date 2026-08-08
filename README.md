@@ -13,7 +13,7 @@ frontend.
 ![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini-2.0_Flash-4285F4?logo=google&logoColor=white)
 ![Anthropic](https://img.shields.io/badge/Anthropic-Claude-191919?logo=anthropic&logoColor=white)
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Open_App-brightgreen?style=flat-square)](https://travel-ai-tai.onrender.com)
 
@@ -162,11 +162,12 @@ A [`render.yaml`](render.yaml) blueprint is included for one-click deployment:
 
 1. On [Render](https://render.com), choose **New + → Blueprint** and select this repo.
 2. Approve the plan. Render builds the Dockerfile and serves the app at `$PORT`.
-3. The blueprint sets `LLM_PROVIDER=mock` and `CACHE_BACKEND=memory`, so the demo
-   runs with no API key and no external database.
+3. The blueprint sets `LLM_PROVIDER=gemini` and `CACHE_BACKEND=memory`. `GEMINI_API_KEY`
+   is a dashboard-only secret (`sync: false`), so with no key set the provider degrades
+   to the deterministic mock — the demo runs with no API key and no external database.
 
-To enable real OpenAI generation, add an `OPENAI_API_KEY` env var and set
-`LLM_PROVIDER=openai` in the Render dashboard.
+To enable real Gemini generation, set `GEMINI_API_KEY` in the Render dashboard (or switch
+to `LLM_PROVIDER=openai` with an `OPENAI_API_KEY`).
 
 ## API reference
 
