@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: every job only reads the repo. The Codecov uploads use
+# tokenless upload (public repo) and need no write scope, so the default
+# broad GITHUB_TOKEN is narrowed to read-only here.
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
