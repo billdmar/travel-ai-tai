@@ -23,7 +23,7 @@ POST /api/v1/itineraries  ──────────────▶    route
     accessibility_needs, … }                         ├─ build schema-locked prompt        (api/llm/prompts/)
                                                       ├─ LLMProvider.complete()  →  LLMResult(text, tokens_used,
 ItineraryResponse  ◀──────────────────────           │     fallback_reason)              (api/llm/provider.py)
-  { id, created_at, preferences,                      │     mock | openai | gemini | langchain
+  { id, created_at, preferences,                      │     mock | openai | gemini | anthropic | langchain
     days[…], total_estimated_cost_usd,                ├─ validate JSON against Pydantic models  (api/models.py)
     currency, summary, tips, provider }               ├─ attach server-owned id/created_at/preferences
                                                       └─ persist → SQLAlchemy async session   (api/db.py)
@@ -50,7 +50,8 @@ Key invariants:
   (zero cost, no key).
 - `openai_provider.py` — OpenAI structured-output generation (default when a key is
   set).
-- `gemini_provider.py`, `langchain_provider.py` — alternative backends.
+- `gemini_provider.py`, `anthropic_provider.py`, `langchain_provider.py` — alternative
+  backends (Gemini, Anthropic/Claude, and a LangChain wrapper).
 
 Prompts are kept out of code in `api/llm/prompts/` so the JSON contract the model
 must satisfy is reviewable in one place.

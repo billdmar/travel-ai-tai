@@ -31,8 +31,7 @@ class LangChainLLMProvider(LLMProvider):
         except ImportError as exc:  # pragma: no cover - depends on optional dep
             raise RuntimeError(
                 "LLM_PROVIDER=langchain requires the optional 'langchain-openai' "
-                "package. Install it with `pip install -r requirements-langchain.txt` "
-                "(or `pip install langchain-openai`)."
+                "package. Install it with `pip install langchain-openai`."
             ) from exc
 
         self._settings = settings

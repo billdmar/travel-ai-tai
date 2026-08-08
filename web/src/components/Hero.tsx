@@ -113,8 +113,8 @@ export default function Hero() {
    * the live curated atlas (so the surprise tracks the real Explore catalog),
    * but the gallery's bundled DESTINATIONS array is always a valid fallback —
    * so an offline endpoint or an empty payload never leaves the button inert.
-   * Picks a name by a plain runtime index so behavior stays deterministic to a
-   * mocked catalog in tests; no animation here, hence no reduced-motion gate.
+   * Picks a random name from the catalog; tests stay stable because the mocked
+   * catalog holds a single entry. No animation here, hence no reduced-motion gate.
    */
   async function surpriseMe() {
     if (surprising) return

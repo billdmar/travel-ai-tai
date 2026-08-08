@@ -1,4 +1,4 @@
-# Core backend — pinned to majors to avoid resolution rabbit holes (see PLAN F5).
+# Core backend — pinned to majors to avoid resolution rabbit holes.
 # starlette is pinned to >=1.3.1 to clear 8 CVEs (PYSEC-2026-161/248/249/1941/1942,
 # CVE-2026-48817/48818) flagged by the CI pip-audit job; FastAPI 0.135+ dropped its
 # starlette<0.47 cap and supports starlette 1.x, so the pair moves up together.

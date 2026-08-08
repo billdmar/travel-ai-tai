@@ -13,7 +13,7 @@ RUN npm run build          # emits /web/dist
 FROM python:3.11-slim AS runtime
 WORKDIR /app
 
-# Install Python deps. CPU-only. Includes the Gemini SDK (google-generativeai)
+# Install Python deps. CPU-only. Includes the Gemini SDK (google-genai)
 # so the live site can run LLM_PROVIDER=gemini; its grpcio/protobuf deps ship
 # prebuilt manylinux wheels for this slim image, so no compiler toolchain is
 # needed. The gemini provider still imports the SDK lazily.

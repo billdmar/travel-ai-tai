@@ -1,6 +1,6 @@
 """Pydantic v2 data models for Travel AI.
 
-The schema is deliberately split into two layers (see PLAN adversarial-review #1):
+The schema is deliberately split into two layers:
 
 * **LLM-facing** (`GeneratedItinerary`) — what the language model produces: the
   creative trip content only. It never invents server-owned identity fields.

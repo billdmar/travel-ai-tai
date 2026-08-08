@@ -1,4 +1,4 @@
-"""Isolated rate-limit test (PLAN adversarial-review #3).
+"""Isolated rate-limit test.
 
 This is the ONLY test that enables rate limiting. It builds a dedicated app
 instance, fires 11 POSTs, asserts the 11th is 429, and resets the shared
