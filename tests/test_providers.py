@@ -1,4 +1,4 @@
-"""OpenAI provider retry-path tests (PLAN bead B2-PROVIDER / failure F6).
+"""OpenAI provider retry-path tests.
 
 Monkeypatches an OpenAI-style provider to raise a RateLimitError twice then
 succeed, asserting tenacity retries and ultimately succeeds; and that

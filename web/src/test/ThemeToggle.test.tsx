@@ -89,18 +89,21 @@ describe('ThemeToggle', () => {
   })
 
   it('applies .dark class when OS prefers dark and mode is system', () => {
+    // OS reports dark; the toggle's module-level preference persists across
+    // tests, so drive it to a known 'system' state rather than assuming one.
     mockMatchMedia(true)
-    // Clear cached module state by forcing re-render with dark OS.
-    localStorage.setItem('tai.theme', 'system')
-
     render(<ThemeToggle />)
-    // In system mode with dark OS, the dark class should be applied after render.
-    // The hook applies it via useEffect, so the class may be set on initial module load.
-    // Since we mocked matchMedia to return dark=true, verify:
     const btn = screen.getByRole('button')
-    // Click to dark explicitly to confirm it's applied.
-    fireEvent.click(btn) // system -> light
-    fireEvent.click(btn) // light -> dark
+
+    // Cycle is system -> light -> dark -> system; at most three clicks land on
+    // system from any starting point.
+    for (let i = 0; i < 3 && btn.getAttribute('aria-label') !== 'Theme: system (auto)'; i++) {
+      fireEvent.click(btn)
+    }
+    expect(btn).toHaveAttribute('aria-label', 'Theme: system (auto)')
+
+    // In system mode the effective theme follows the OS. With matchMedia
+    // reporting dark, the auto branch must apply the dark class.
     expect(document.documentElement.classList.contains('dark')).toBe(true)
   })
 })

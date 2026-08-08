@@ -1,4 +1,4 @@
-"""Concurrency smoke test (PLAN adversarial-review #11 / honesty matrix).
+"""Concurrency smoke test.
 
 Fires 50 concurrent POSTs against the mock provider and asserts every one
 returns 201. This is the honest "designed for concurrency" evidence — NOT a
