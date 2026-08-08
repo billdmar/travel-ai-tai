@@ -78,6 +78,10 @@ _SECURITY_HEADERS = {
     # 1 year; safe because the app is served over HTTPS on Render and HSTS is
     # ignored by browsers over plain HTTP (e.g. local dev).
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    # The app uses no camera, microphone, or geolocation; explicitly disable
+    # them (and FLoC/interest-cohort tracking) so a future XSS or embedded
+    # third-party frame cannot silently request these powerful features.
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), interest-cohort=()",
 }
 
 

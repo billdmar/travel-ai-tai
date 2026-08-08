@@ -33,6 +33,10 @@ async def test_security_headers_present(client) -> None:
     assert resp.headers["X-Frame-Options"] == "DENY"
     assert resp.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
     assert "max-age=" in resp.headers["Strict-Transport-Security"]
+    # Unused powerful browser features are explicitly disabled.
+    permissions_policy = resp.headers["Permissions-Policy"]
+    assert "camera=()" in permissions_policy
+    assert "geolocation=()" in permissions_policy
     csp = resp.headers["Content-Security-Policy"]
     assert "default-src 'self'" in csp
     # CSP must not break Swagger UI (loads from jsdelivr) or the SPA.
