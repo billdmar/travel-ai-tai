@@ -9,10 +9,12 @@ services:
     env_file:
       - .env
     environment:
-      # Override the host-local default so the container reaches the redis service.
+      # Override the host-local default so the container reaches the redis service
+      # when it is running (`--profile cache`). Redis is optional — the app falls
+      # back to the in-memory cache if it is unreachable — so there is no hard
+      # `depends_on: redis`, which would otherwise break the default (no-profile)
+      # `docker-compose up` by referencing a service the active profile excludes.
       REDIS_URL: redis://redis:6379/0
-    depends_on:
-      - redis
 
   redis:
     image: redis:7-alpine
