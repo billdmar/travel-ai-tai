@@ -9,7 +9,7 @@ pydantic>=2.13.4,<3
 pydantic-settings>=2.2,<3
 sqlalchemy>=2.0,<2.1
 greenlet>=3.0,<4  # required by SQLAlchemy's async engine
-aiosqlite>=0.19,<0.21
+aiosqlite>=0.22.1,<0.23
 # Async Postgres driver for the `postgresql+asyncpg://` DSN. Required so the
 # documented prod persistence path (DATABASE_URL swap) actually boots — without
 # it, create_async_engine raises ModuleNotFoundError at startup. Ships prebuilt
