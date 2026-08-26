@@ -5,7 +5,7 @@
 # requirements-dev.txt because the test suite exercises these code paths.
 
 # OpenAI provider — only imported when LLM_PROVIDER=openai.
-openai>=1.0,<2
+openai>=3.3.1,<4
 
 # Anthropic provider — only imported when LLM_PROVIDER=anthropic.
 anthropic>=0.39,<1
