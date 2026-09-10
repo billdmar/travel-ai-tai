@@ -22,12 +22,22 @@ export default function ResultsPage() {
   let state = location.state as ResultsLocationState | null
 
   if (state?.recommendations?.length) {
-    try { sessionStorage.setItem(RESULTS_KEY, JSON.stringify(state)) } catch {}
+    try {
+      sessionStorage.setItem(RESULTS_KEY, JSON.stringify(state))
+    } catch {
+      // Best-effort persistence only. Safari private browsing and a full quota
+      // both throw here, and the page already has its results in router state —
+      // losing the refresh-survival copy is not worth failing the render for.
+    }
   } else {
     try {
       const cached = sessionStorage.getItem(RESULTS_KEY)
       if (cached) state = JSON.parse(cached) as ResultsLocationState
-    } catch {}
+    } catch {
+      // Unreadable or malformed cache (storage disabled, or a JSON.parse on a
+      // truncated entry). `state` stays null and the empty-state branch below
+      // guides the user back, which is the same outcome as a cold visit.
+    }
   }
 
   // Direct navigation / refresh loses router state — guide the user back.

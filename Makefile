@@ -1,4 +1,4 @@
-.PHONY: help dev web-dev test test-fe lint typecheck build smoke clean
+.PHONY: help dev web-dev test test-fe lint lint-fe typecheck build smoke clean
 
 help: ## Show all targets with descriptions
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -17,6 +17,9 @@ test-fe: ## Run frontend tests with coverage
 
 lint: ## Lint and type-check backend code
 	.venv/bin/ruff check api/ tests/ && .venv/bin/mypy api/ --ignore-missing-imports
+
+lint-fe: ## Lint frontend code
+	cd web && npm run lint
 
 typecheck: ## Type-check frontend code
 	cd web && npx tsc --noEmit -p tsconfig.app.json

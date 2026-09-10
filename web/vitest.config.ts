@@ -12,8 +12,8 @@ export default defineConfig({
     css: false,
     coverage: {
       provider: 'v8',
-      // Last measured (`npm run test:cov`, 204 specs): 83.96% lines/statements,
-      // 81.45% branches, 69.43% functions. Thresholds sit a few points below so
+      // Last measured (`npm run test:cov`, 204 specs): 86.35% lines/statements,
+      // 81.42% branches, 69.60% functions. Thresholds sit a few points below so
       // the gate catches real regressions without flaking; ratchet upward as the
       // suite grows.
       thresholds: {
