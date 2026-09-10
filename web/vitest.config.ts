@@ -12,10 +12,12 @@ export default defineConfig({
     css: false,
     coverage: {
       provider: 'v8',
-      // Last measured (`npm run test:cov`, 204 specs): 83.96% lines/statements,
-      // 81.45% branches, 69.43% functions. Thresholds sit a few points below so
-      // the gate catches real regressions without flaking; ratchet upward as the
-      // suite grows.
+      // Last measured (`npm run test:cov`, 204 specs, vitest 4): 90.72% lines,
+      // 86.22% statements, 80.07% branches, 79.22% functions. Note these moved
+      // on the v3 -> v4 upgrade (lines 83.96 -> 90.72, functions 69.43 -> 79.22)
+      // because v4 remaps v8 output differently — the suite did not change.
+      // Thresholds sit below the floors so the gate catches real regressions
+      // without flaking; ratchet upward as the suite grows.
       thresholds: {
         lines: 70,
         statements: 70,
