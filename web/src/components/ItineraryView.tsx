@@ -10,6 +10,7 @@ import CostBreakdown from './CostBreakdown'
 import PackingChecklist from './PackingChecklist'
 import ExportShareButton from './ExportShareButton'
 import ErrorBanner from './ErrorBanner'
+import SampleDataNotice from './SampleDataNotice'
 
 // Code-split the interactive map: Leaflet + its CSS are heavy and only loaded
 // when the traveler actually switches to the Map view, keeping the main bundle
@@ -56,8 +57,10 @@ export default function ItineraryView({
     setSeededId(initialItinerary.id)
   }
 
-  const { id, preferences, days, total_estimated_cost_usd, currency, summary, tips, provider } =
-    itinerary
+  const {
+    id, preferences, days, total_estimated_cost_usd, currency, summary, tips, provider,
+    fallback_reason: fallbackReason,
+  } = itinerary
 
   const grandTotal = days.reduce(
     (sum, day) => sum + day.activities.reduce((s, a) => s + a.estimated_cost_usd, 0),
@@ -284,6 +287,10 @@ export default function ItineraryView({
           </div>
         </div>
       </Reveal>
+
+      {/* Mock-provider disclosure. Sits above the affiliate banner and the plan
+          itself: what generated the prose is the first thing a reader needs. */}
+      <SampleDataNotice provider={provider} fallbackReason={fallbackReason} />
 
       {/* FTC affiliate disclosure banner */}
       <div className="flex items-start gap-2.5 rounded-xl border border-ink-line bg-canvas-sunken px-4 py-3 text-xs text-ink-soft">

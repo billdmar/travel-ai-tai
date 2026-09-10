@@ -59,6 +59,15 @@ export interface ItineraryResponse {
   provider: string
   tokens_used: number | null
   saved: boolean
+  /**
+   * Why a real provider silently degraded to the mock for this response.
+   *
+   * Optional because the server only sets it on a fresh generation that fell
+   * back mid-request; rehydrating a stored itinerary drops it, while `provider`
+   * persists. Treat `provider === 'mock'` as the durable signal and this as the
+   * explanation when it happens to be available.
+   */
+  fallback_reason?: string | null
 }
 
 export interface ItineraryListItem {

@@ -182,4 +182,20 @@ describe('ItineraryView', () => {
       expect(reorderMock).toHaveBeenCalledWith('it_test1', 1, [1, 0]),
     )
   })
+
+  // The mock-provider disclosure is the honest-demo path: the hosted deploy runs
+  // on the mock, and before this the only hint was a `via mock` chip.
+  it('surfaces the sample-data notice when the itinerary came from the mock', () => {
+    renderView()
+    expect(
+      screen.getByRole('complementary', { name: /not written by a language model/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows no sample-data notice for a real provider', () => {
+    renderView({ itinerary: makeItinerary({ provider: 'gemini' }) })
+    expect(
+      screen.queryByText(/not written by a language model/i),
+    ).not.toBeInTheDocument()
+  })
 })
