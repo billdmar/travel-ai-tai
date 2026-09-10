@@ -250,6 +250,19 @@ The backend is built to serve many concurrent users; these are the concrete mech
 > not a measured production load test. The OpenAI path is implemented and unit-tested
 > via mocked errors, but the live deployment uses the mock provider (no API key).
 
+### Measured numbers
+
+`make bench` runs the service under uvicorn over loopback and regenerates
+[`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) — p50/p95/p99 for cached, uncached and read
+paths, plus cache hit rate and throughput under a concurrent mixed workload.
+
+Read the caveats in that file before quoting any of it. The short version: it runs
+against the **mock provider**, so the uncached figures are the service's own overhead
+and not the cost of generating an itinerary — which also means the cached-vs-uncached
+gap it shows *understates* what the cache is worth, because the LLM call it exists to
+skip is free under the mock. It is also loopback rather than networked, SQLite rather
+than Postgres, and runs with rate limiting disabled.
+
 ## Testing
 
 A **250+ test backend** suite (pytest) runs entirely against the mock LLM provider — no

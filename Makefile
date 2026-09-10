@@ -1,4 +1,4 @@
-.PHONY: help dev web-dev test test-fe lint typecheck build smoke clean
+.PHONY: help dev web-dev test test-fe lint typecheck build bench smoke clean
 
 help: ## Show all targets with descriptions
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} /^[a-zA-Z_-]+:.*##/ {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -23,6 +23,9 @@ typecheck: ## Type-check frontend code
 
 build: ## Build frontend for production
 	cd web && npm run build
+
+bench: ## Benchmark over loopback and regenerate docs/BENCHMARKS.md
+	.venv/bin/python scripts/bench.py
 
 smoke: ## Run smoke tests
 	./scripts/smoke-test.sh
