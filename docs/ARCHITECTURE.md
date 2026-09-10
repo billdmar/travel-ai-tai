@@ -64,8 +64,11 @@ default `DATABASE_URL` is SQLite (`sqlite+aiosqlite`), swappable to Postgres
 
 The schema is **Alembic-managed** — migrations in `migrations/versions/` form a
 4-revision chain ending at head `e3ab67743567` (which adds the curated-destinations
-table and seed data). On startup the app runs `run_migrations()` (`api/db.py`) so the
-database is always at head.
+table and seed data). Startup branches on the backend (`api/main.py`): Postgres runs
+`run_migrations()` (`api/db.py`) so the documented prod path lands on head, while the
+SQLite/dev default takes `create_all(engine)` and then seeds the curated table
+directly — that path builds the schema from the models and never consults the
+revision chain, so a SQLite file carries no Alembic version stamp.
 
 ## Other surfaces
 

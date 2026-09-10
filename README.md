@@ -83,9 +83,20 @@ listed under [API reference](#api-reference)):
   context. All three are **no-ops by default** so the live deploy is unchanged unless
   explicitly enabled.
 
-> **Honest LLM note.** The hosted demo still runs in **mock-LLM mode** — the OpenAI and
-> Gemini providers are implemented and unit-tested, but the live deploy's Gemini quota is
+> **What the hosted demo actually serves.** Two limits worth knowing before clicking through.
+>
+> **Provider — mock.** It runs in **mock-LLM mode**: the OpenAI, Gemini and Anthropic
+> providers are implemented and unit-tested, but the live deploy's Gemini quota is
 > exhausted, so it serves the deterministic mock fallback rather than real model output.
+>
+> **Build — behind `main`.** The deployment is stale, so the section above describes
+> `main`, not the hosted URL. Checked 2026-09-09: `/health` reports `1.0.0` and the live
+> OpenAPI exposes **13 paths against `main`'s 18**. Missing there: `regenerate`, both
+> day-editing routes, `og-image`, and `destinations/curated`. Reproduce with
+> `curl -s https://travel-ai-tai.onrender.com/health` and by diffing
+> `curl -s https://travel-ai-tai.onrender.com/openapi.json` against the
+> [API reference](#api-reference) below. Run locally (see
+> [Quickstart](#quickstart-local)) for the current feature set.
 
 ## Screenshots
 
