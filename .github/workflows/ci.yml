@@ -101,11 +101,20 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 is the long-standing baseline. 24 is the current LTS and, unlike 20,
+        # ships built-in Web Storage — which shadows jsdom's in the vitest
+        # environment and silently broke 21 specs for anyone off the pinned
+        # version. A single-version pin could not see that class of bug, so both
+        # sides of the boundary are exercised here.
+        node-version: ["20", "24"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: cd web && npm ci
@@ -113,7 +122,9 @@ jobs:
       - name: Unit tests + coverage gate (vitest)
         run: cd web && npm run test:cov
       - name: Upload coverage to Codecov
-        if: github.event_name == 'push'
+        # One upload per commit: the matrix legs run the same specs, so the
+        # baseline leg alone reports and the others stay build-only.
+        if: github.event_name == 'push' && matrix.node-version == '20'
         uses: codecov/codecov-action@v5
         with:
           directory: web/coverage

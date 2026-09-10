@@ -12,9 +12,9 @@ export default defineConfig({
     css: false,
     coverage: {
       provider: 'v8',
-      // Measured floors at the time of writing: ~76% lines/statements, ~80%
-      // branches, ~69% functions. Thresholds are set a few points below so the
-      // gate catches real regressions without flaking; ratchet upward as the
+      // Last measured (`npm run test:cov`, 204 specs): 83.96% lines/statements,
+      // 81.45% branches, 69.43% functions. Thresholds sit a few points below so
+      // the gate catches real regressions without flaking; ratchet upward as the
       // suite grows.
       thresholds: {
         lines: 70,
